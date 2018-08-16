@@ -7,5 +7,5 @@ fn main() {
     let bits = kmer::kmer_to_bits(&kmer_str).unwrap();
     println!("Bits: {}", bits);
     let kmer_str = kmer::bits_to_kmer(bits, kmer_str.len());
-    println!("Kmer: {}", kmer_str);
+    println!("Kmer: {}", kmer_str.unwrap());
 }
