@@ -1,4 +1,3 @@
-use std::error;
 use std::fmt;
 
 const MAX_KMER_LENGTH: usize = 32;
@@ -17,15 +16,6 @@ impl fmt::Display for KmerError {
             KmerError::LengthError(length) =>
                 write!(f, "k-mer length ({}) is greater than maximum ({})",
                     length, MAX_KMER_LENGTH),
-        }
-    }
-}
-
-impl error::Error for KmerError {
-    fn description(&self) -> &str {
-        match self {
-            KmerError::InvalidBaseError(_b) => "k-mer contains invalid base",
-            KmerError::LengthError(_l) => "k-mer is longer than allowed",
         }
     }
 }
