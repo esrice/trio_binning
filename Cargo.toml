@@ -1,0 +1,6 @@
+[package]
+name = "trio_binning"
+version = "0.1.0"
+authors = ["Edward S. Rice <esrice@ucsc.edu>"]
+
+[dependencies]
