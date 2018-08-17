@@ -1,5 +1,9 @@
 extern crate trio_binning;
+extern crate clap;
+
 use trio_binning::kmer;
+use clap::{Arg, App};
+
 
 fn main() {
     let kmer_str = String::from("ACTGACTGAC");

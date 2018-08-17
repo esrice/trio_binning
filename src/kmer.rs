@@ -1,4 +1,8 @@
 use std::fmt;
+use std::collections::HashSet;
+use std::fs::File;
+use std::io::{self, BufReader, BufRead};
+use std::error::Error;
 
 const MAX_KMER_LENGTH: usize = 32;
 
@@ -19,6 +23,8 @@ impl fmt::Display for KmerError {
         }
     }
 }
+
+impl Error for KmerError {}
 
 pub fn kmer_to_bits(kmer: &String) -> Result<u64, KmerError> {
     if kmer.len() > MAX_KMER_LENGTH {
@@ -84,6 +90,24 @@ pub fn get_canonical_repr(kmer: &String) -> Result<String, KmerError> {
     let revcomp = reverse_complement(kmer)?;
 
     Ok(if kmer < &revcomp {kmer.clone()} else {revcomp})
+}
+
+pub fn get_kmer_size(file: File) -> Result<usize, io::Error> {
+    let mut buf = String::new();
+    let mut reader = BufReader::new(file);
+    reader.read_line(&mut buf)?;
+
+    Ok(buf.trim().len())
+}
+
+pub fn read_kmers_into_set(file: File) -> Result<HashSet<u64>, Box<Error>> {
+    let mut kmers: HashSet<u64> = HashSet::new();
+
+    for kmer in BufReader::new(file).lines() {
+        kmers.insert(kmer_to_bits(&kmer?)?);
+    }
+
+    Ok(kmers)
 }
 
 #[cfg(test)]

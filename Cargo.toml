@@ -4,3 +4,4 @@ version = "0.1.0"
 authors = ["Edward S. Rice <esrice@ucsc.edu>"]
 
 [dependencies]
+clap = "2.26.0"
