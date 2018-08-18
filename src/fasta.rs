@@ -1,17 +1,23 @@
 use std::io::{BufRead, BufReader, Lines, Read};
+use std::error::Error;
 
-pub struct FastaRecord {
+pub struct Record {
     id: String,
     seq: String,
     entry_string: String,
 }
 
-impl FastaRecord {
-    pub fn new(entry_string: &String) -> Option<FastaRecord> {
+type BoxResult<T> = Result<T, Box<Error>>;
+
+impl Record {
+    /// Creates a new Record from a &String containing a fasta entry.
+    /// Returns None if the string is empty.
+    pub fn new(entry_string: &String) -> BoxResult<Record> {
         let mut lines_iter = entry_string.split('\n');
-        // TODO replace unwraps with actual error handling
-        let first_line = lines_iter.next().unwrap();
-        let first_word = first_line.split_whitespace().next().unwrap();
+
+        let first_line = lines_iter.next().ok_or("Parsing error!")?;
+        let first_word = first_line.split_whitespace().next()
+            .ok_or("Parsing error!")?;
         let id = &first_word[1..];
         let mut seq = String::new();
 
@@ -19,7 +25,7 @@ impl FastaRecord {
             seq.push_str(line);
         }
 
-        Some(FastaRecord {
+        Ok(Record {
             id: id.to_string(),
             seq: seq.to_string(),
             entry_string: entry_string.to_string(),
@@ -31,32 +37,34 @@ impl FastaRecord {
     pub fn to_string(&self) -> &str { &self.entry_string }
 }
 
-pub struct FastaReader<T> {
+pub struct Reader<T> {
     lines_iter: Lines<BufReader<T>>,
     current_entry: String,
 }
 
-impl<T: Read> FastaReader<T> {
-    pub fn new(file: T) -> FastaReader<T> {
-        FastaReader {
+impl<T: Read> Reader<T> {
+    pub fn new(file: T) -> Reader<T> {
+        Reader {
             lines_iter: BufReader::new(file).lines(),
             current_entry: String::new(),
         }
     }
 }
 
-impl<T: Read> Iterator for FastaReader<T> {
-    type Item = FastaRecord;
+impl<T: Read> Iterator for Reader<T> {
+    type Item = BoxResult<Record>;
 
-    // TODO replace unwraps with actual error handling
-    fn next(&mut self) -> Option<FastaRecord> {
+    fn next(&mut self) -> Option<BoxResult<Record>> {
         while let Some(result) = self.lines_iter.next() {
-            let line = format!("{}\n", result.unwrap());
+            let line = match result {
+                Ok(r) => r,
+                Err(e) => return Some(Err(Box::new(e))),
+            };
             if line.starts_with(">") {
                 if self.current_entry != "" {
                     let new_entry = self.current_entry.clone();
                     self.current_entry = String::from(line);
-                    return Some(FastaRecord::new(&new_entry).unwrap());
+                    return Some(Record::new(&new_entry));
                 } else {
                     self.current_entry.push_str(&line);
                 }
@@ -76,7 +84,7 @@ mod tests {
     #[test]
     fn fasta_record() {
         let entry_string = ">id\nACTG\nAAAA\nACGT".to_string();
-        let rec = FastaRecord::new(&entry_string).unwrap();
+        let rec = Record::new(&entry_string).unwrap();
         assert_eq!(rec.id(), "id".to_string());
         assert_eq!(rec.seq(), "ACTGAAAAACGT".to_string());
         assert_eq!(rec.to_string(), entry_string);
