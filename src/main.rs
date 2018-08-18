@@ -1,15 +1,12 @@
 extern crate trio_binning;
-extern crate clap;
 
-use trio_binning::kmer;
-use clap::{Arg, App};
-
+use trio_binning::seq;
+use std::fs::File;
 
 fn main() {
-    let kmer_str = String::from("ACTGACTGAC");
-    println!("Kmer: {}", kmer_str);
-    let bits = kmer::kmer_to_bits(&kmer_str).unwrap();
-    println!("Bits: {}", bits);
-    let kmer_str = kmer::bits_to_kmer(bits, kmer_str.len());
-    println!("Kmer: {}", kmer_str.unwrap());
+    let reader = seq::FastaReader::new(File::open("test.fa").unwrap());
+
+    for read in reader {
+        println!("ID:{}\tSEQ:{}", read.id(), read.seq());
+    }
 }
