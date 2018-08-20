@@ -1,5 +1,17 @@
 use std::io::{self, BufRead, BufReader, Lines, Read};
 
+/// a variant of try!/? to use in functions/methods that return
+/// Option<Result<T,E>>. For example, if you call a function that returns a
+/// Result from inside an iterator's next() method and want to propogate any
+/// errors that come from that function, you can't use try! because next() has
+/// to return an Option but try! returns a Result.
+macro_rules! try_or_some_err {
+    ($x:expr) => (match $x {
+        Ok(val) => val,
+        Err(err) => return Some(Err(err)),
+    });
+}
+
 #[derive(Debug)]
 pub enum FastaError {
     Parse(String),
@@ -60,6 +72,8 @@ pub struct Reader<T> {
 }
 
 impl<T: Read> Reader<T> {
+    /// Creates a new fasta Reader that reads from `file`. `file` can be
+    /// anything that implements `std::io::Read`, e.g., `std::io::File`
     pub fn new(file: T) -> Reader<T> {
         Reader {
             lines_iter: BufReader::new(file).lines(),
@@ -77,10 +91,7 @@ impl<T: Read> Iterator for Reader<T> {
 
     fn next(&mut self) -> Option<Result<Record, FastaError>> {
         while let Some(result) = self.lines_iter.next() {
-            let line = match result {
-                Ok(r) => r,
-                Err(e) => return Some(Err(FastaError::Io(e))),
-            };
+            let line = try_or_some_err!(result.map_err(|e| FastaError::Io(e)));
 
             if line.starts_with(">") {
                 if self.current_entry.entry_string != "" {
@@ -90,10 +101,8 @@ impl<T: Read> Iterator for Reader<T> {
                     // one, and then return the completed one.
                     let finished_entry = self.current_entry.clone();
                     self.current_entry = Record {
-                        id: match get_id_from_defline(&line) {
-                            Ok(id) => id.to_string(),
-                            Err(e) => return Some(Err(e)),
-                        },
+                        id: try_or_some_err!(get_id_from_defline(&line))
+                            .to_string(),
                         seq: String::new(),
                         entry_string: String::from(line),
                     };
@@ -102,20 +111,24 @@ impl<T: Read> Iterator for Reader<T> {
                     // we're on the first line, so don't return anything; just
                     // update the entry string and id.
                     self.current_entry.entry_string.push_str(&line);
-                    self.current_entry.id = match get_id_from_defline(&line) {
-                        Ok(id) => id.to_string(),
-                        Err(e) => return Some(Err(e)),
-                    }
+                    self.current_entry.id = try_or_some_err!(
+                        get_id_from_defline(&line)).to_string();
                 }
             } else { // line is not the defline
                 self.current_entry.entry_string.push_str(&line);
                 self.current_entry.seq.push_str(&line.trim());
             }
         }
-        
+       
+        // we've reached EOF, so return the final entry, or None if we already
+        // did that
         if self.current_entry.entry_string != "" {
             let finished_entry = self.current_entry.clone();
+
+            // change current_entry.entry_string to an empty String so that the
+            // next time next() is called, we know to return None
             self.current_entry.entry_string = String::new();
+
             Some(Ok(finished_entry))
         } else {
             None

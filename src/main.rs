@@ -1,6 +1,6 @@
 extern crate trio_binning;
 
-use trio_binning::fasta;
+use trio_binning::seq::fasta;
 use std::fs::File;
 
 fn main() {
