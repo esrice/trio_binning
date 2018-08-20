@@ -1,4 +1,6 @@
 use std::io::{self, BufRead, BufReader, Lines, Read};
+use std::error;
+use std::fmt;
 
 /// a variant of try!/? to use in functions/methods that return
 /// Option<Result<T,E>>. For example, if you call a function that returns a
@@ -14,11 +16,25 @@ macro_rules! try_or_some_err {
 
 #[derive(Debug)]
 pub enum FastaError {
-    Parse(String),
+    Parse,
+    ParseLine(usize),
     Io(io::Error),
 }
 
-#[derive(Clone)]
+impl fmt::Display for FastaError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            FastaError::Parse => write!(f, "Parsing error!"),
+            FastaError::ParseLine(line) =>
+                write!(f, "Parsing error on line {}", line),
+            FastaError::Io(e) => write!(f, "{}", e),
+        }
+    }
+}
+
+impl error::Error for FastaError {}
+
+#[derive(Clone, Debug)]
 pub struct Record {
     id: String,
     seq: String,
@@ -32,7 +48,7 @@ impl Record {
         let mut lines_iter = entry_string.split('\n');
 
         let id = lines_iter.next()
-            .ok_or(FastaError::Parse("Parsing error!".to_owned()))
+            .ok_or(FastaError::Parse)
             .and_then(|l| get_id_from_defline(&l))?
             .to_string();
 
@@ -62,13 +78,14 @@ impl Record {
 /// if the defline is empty or there is a space after the ">"
 fn get_id_from_defline(defline: &str) -> Result<&str, FastaError> {
     defline.split_whitespace().next() // get the first word
-        .ok_or(FastaError::Parse("Can't parse defline".to_owned()))
+        .ok_or(FastaError::Parse)
         .map(|w| w.trim_left_matches('>')) // trim the '>' delimiter
 }
 
 pub struct Reader<T> {
     lines_iter: Lines<BufReader<T>>,
     current_entry: Record,
+    current_line_number: usize,
 }
 
 impl<T: Read> Reader<T> {
@@ -81,7 +98,8 @@ impl<T: Read> Reader<T> {
                 id: String::new(),
                 seq: String::new(),
                 entry_string: String::new(),
-            }
+            },
+            current_line_number: 0,
         }
     }
 }
@@ -91,6 +109,8 @@ impl<T: Read> Iterator for Reader<T> {
 
     fn next(&mut self) -> Option<Result<Record, FastaError>> {
         while let Some(result) = self.lines_iter.next() {
+            self.current_line_number += 1;
+
             let line = try_or_some_err!(result.map_err(|e| FastaError::Io(e)));
 
             if line.starts_with(">") {
@@ -101,7 +121,9 @@ impl<T: Read> Iterator for Reader<T> {
                     // one, and then return the completed one.
                     let finished_entry = self.current_entry.clone();
                     self.current_entry = Record {
-                        id: try_or_some_err!(get_id_from_defline(&line))
+                        id: try_or_some_err!(get_id_from_defline(&line)
+                            .map_err(|_| FastaError::ParseLine(
+                                self.current_line_number)))
                             .to_string(),
                         seq: String::new(),
                         entry_string: String::from(line),
@@ -112,11 +134,20 @@ impl<T: Read> Iterator for Reader<T> {
                     // update the entry string and id.
                     self.current_entry.entry_string.push_str(&line);
                     self.current_entry.id = try_or_some_err!(
-                        get_id_from_defline(&line)).to_string();
+                        get_id_from_defline(&line)
+                        .map_err(|_| FastaError::ParseLine(
+                                self.current_line_number)))
+                        .to_string();
                 }
             } else { // line is not the defline
-                self.current_entry.entry_string.push_str(&line);
-                self.current_entry.seq.push_str(&line.trim());
+                if self.current_entry.id == "" {
+                    // must start the file with a defline!
+                    return Some(Err(FastaError::ParseLine(
+                                self.current_line_number)));
+                } else {
+                    self.current_entry.entry_string.push_str(&line);
+                    self.current_entry.seq.push_str(&line.trim());
+                }
             }
         }
        
