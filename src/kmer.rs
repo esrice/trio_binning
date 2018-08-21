@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufReader, BufRead};
 use std::error::Error;
+use std::result;
 
 const MAX_KMER_LENGTH: usize = 32;
 
@@ -10,6 +11,7 @@ const MAX_KMER_LENGTH: usize = 32;
 pub enum KmerError {
     InvalidBaseError(char),
     LengthError(usize),
+    Io(io::Error),
 }
 
 impl fmt::Display for KmerError {
@@ -20,13 +22,17 @@ impl fmt::Display for KmerError {
             KmerError::LengthError(length) =>
                 write!(f, "k-mer length ({}) is greater than maximum ({})",
                     length, MAX_KMER_LENGTH),
+            KmerError::Io(e) => e.fmt(f),
         }
     }
 }
 
 impl Error for KmerError {}
 
-pub fn kmer_to_bits(kmer: &String) -> Result<u64, KmerError> {
+type Result<T> = result::Result<T, KmerError>;
+pub type KmerSet = HashSet<u64>;
+
+pub fn kmer_to_bits(kmer: &str) -> Result<u64> {
     if kmer.len() > MAX_KMER_LENGTH {
         return Err(KmerError::LengthError(kmer.len()));
     }
@@ -48,7 +54,7 @@ pub fn kmer_to_bits(kmer: &String) -> Result<u64, KmerError> {
     Ok(bit_repr)
 }
 
-pub fn bits_to_kmer(bits: u64, k: usize) -> Result<String, KmerError> {
+pub fn bits_to_kmer(bits: u64, k: usize) -> Result<String> {
     if k > MAX_KMER_LENGTH {
         return Err(KmerError::LengthError(k));
     }
@@ -70,7 +76,7 @@ pub fn bits_to_kmer(bits: u64, k: usize) -> Result<String, KmerError> {
     Ok(string_repr)
 }
 
-pub fn reverse_complement(sequence: &String) -> Result<String, KmerError> {
+pub fn reverse_complement(sequence: &str) -> Result<String> {
     let mut revcomp = String::new();
     for base in sequence.chars().rev() {
         let complement = match base {
@@ -86,25 +92,25 @@ pub fn reverse_complement(sequence: &String) -> Result<String, KmerError> {
     Ok(revcomp)
 }
 
-pub fn get_canonical_repr(kmer: &String) -> Result<String, KmerError> {
+pub fn get_canonical_repr(kmer: &str) -> Result<String> {
     let revcomp = reverse_complement(kmer)?;
 
-    Ok(if kmer < &revcomp {kmer.clone()} else {revcomp})
+    Ok(if kmer < &revcomp {kmer.to_string()} else {revcomp.to_string()})
 }
 
-pub fn get_kmer_size(file: File) -> Result<usize, io::Error> {
+pub fn get_kmer_size(file: File) -> Result<usize> {
     let mut buf = String::new();
     let mut reader = BufReader::new(file);
-    reader.read_line(&mut buf)?;
+    reader.read_line(&mut buf).map_err(|e| KmerError::Io(e))?;
 
     Ok(buf.trim().len())
 }
 
-pub fn read_kmers_into_set(file: File) -> Result<HashSet<u64>, Box<Error>> {
-    let mut kmers: HashSet<u64> = HashSet::new();
+pub fn read_kmers_into_set(file: File) -> Result<KmerSet> {
+    let mut kmers: KmerSet = KmerSet::new();
 
     for kmer in BufReader::new(file).lines() {
-        kmers.insert(kmer_to_bits(&kmer?)?);
+        kmers.insert(kmer_to_bits(&kmer.map_err(|e| KmerError::Io(e))?)?);
     }
 
     Ok(kmers)

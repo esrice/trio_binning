@@ -4,7 +4,6 @@ extern crate flate2;
 use trio_binning::seq::{self, fasta, fastq};
 use flate2::read::GzDecoder;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
 
 fn main() {
     let reader = seq::Reader::from_filename("test.fa").unwrap();

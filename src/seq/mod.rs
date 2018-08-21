@@ -2,8 +2,7 @@ use std::fmt;
 use std::path::Path;
 use std::fs::File;
 use std::io::{self, Read};
-use std::result;
-use std::error;
+use std::{result,error};
 
 pub mod fasta;
 pub mod fastq;
@@ -65,6 +64,15 @@ impl fmt::Display for Record {
     }
 }
 
+/// Gets the extension from a filename.
+///
+/// # Errors
+/// `ReaderError::Other` if filename has no extension
+fn get_extension(filename: &str) -> Result<&str> {
+    Path::new(filename).extension().and_then(|e| e.to_str())
+        .ok_or(ReaderError::Other("Filename has no extension!".to_owned()))
+}
+
 /// wrapper for various file types containing sets of sequences, so that the
 /// user can just call next() and get generic Records back without worrying
 /// about what kind of file is being parsed
@@ -75,10 +83,7 @@ pub enum Reader<T> {
 
 impl Reader<File> {
     pub fn from_filename(filename: &str) -> Result<Reader<File>> {
-        let extension = Path::new(filename).extension()
-            .and_then(|e| e.to_str())
-            .ok_or(ReaderError::Other("Filename has no extension!"
-                                         .to_owned()))?;
+        let extension = get_extension(filename)?;
         let file = File::open(filename).map_err(|e| ReaderError::Io(e))?;
 
         match extension {

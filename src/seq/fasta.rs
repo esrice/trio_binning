@@ -44,7 +44,7 @@ pub struct Record {
 impl Record {
     /// Creates a new Record from a &String containing a fasta entry.
     /// Returns None if the string is empty.
-    pub fn new(entry_string: &String) -> Result<Record, FastaError> {
+    pub fn new(entry_string: &str) -> Result<Record, FastaError> {
         let mut lines_iter = entry_string.split('\n');
 
         let id = lines_iter.next()
