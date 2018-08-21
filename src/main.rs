@@ -1,6 +1,10 @@
 extern crate trio_binning;
+extern crate flate2;
 
-use trio_binning::seq::{self, fastq};
+use trio_binning::seq::{self, fasta, fastq};
+use flate2::read::GzDecoder;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 
 fn main() {
     let reader = seq::Reader::from_filename("test.fa").unwrap();
@@ -22,4 +26,11 @@ fn main() {
         Ok(_) => panic!("This read should not be Ok!"),
         Err(e) => eprintln!("test_bad.fastq: {}", e),
     };
+
+    let gz = GzDecoder::new(File::open("test.fastq.gz").unwrap());
+    let gz_reader = fastq::Reader::new(gz);
+    for result in gz_reader {
+        let record = result.unwrap();
+        println!("ID:{}\tSEQ:{}", record.id(), record.seq());
+    }
 }
