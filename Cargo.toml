@@ -6,3 +6,4 @@ authors = ["Edward S. Rice <esrice@ucsc.edu>"]
 [dependencies]
 clap = "2.26.0"
 flate2 = "1.0.2"
+seq_io = "0.3.0"

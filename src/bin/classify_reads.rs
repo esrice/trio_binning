@@ -2,8 +2,8 @@ extern crate trio_binning;
 extern crate clap;
 
 use trio_binning::kmer::*;
-use trio_binning::file::*;
 use trio_binning::classify::*;
+use std::fs::File;
 use clap::{Arg, App, ArgGroup, ArgMatches};
 use std::process;
 use std::error::Error;
@@ -67,12 +67,12 @@ fn run() -> BoxResult<()> {
     let args = parse_args();
 
     // figure out k by looking at the first line of one of the kmers file
-    let k = get_kmer_size(try_open(args.value_of("hapA-kmers").unwrap())?)?;
+    let k = get_kmer_size(File::open(args.value_of("hapA-kmers").unwrap())?)?;
 
     // read k-mers into HashSets
-    let hap_a_kmers = read_kmers_into_set(try_open(
+    let hap_a_kmers = read_kmers_into_set(File::open(
             args.value_of("hapA-kmers").unwrap())?)?;
-    let hap_b_kmers = read_kmers_into_set(try_open(
+    let hap_b_kmers = read_kmers_into_set(File::open(
             args.value_of("hapB-kmers").unwrap())?)?;
 
     // call the correct function depending on whether the input is unpaired

@@ -1,6 +1,5 @@
-
 use kmer;
-use seq::{self, fasta};
+use seq;
 use std::result;
 use std::error;
 use std::fmt;
@@ -11,35 +10,17 @@ struct HaplotypeScores {
     hap_b_score: f32,
 }
 
-#[derive(Debug)]
-pub enum ClassifyError {
-    Kmer(kmer::KmerError),
-    Reader(seq::ReaderError),
-}
-
-impl fmt::Display for ClassifyError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ClassifyError::Kmer(e) => e.fmt(f),
-            ClassifyError::Reader(e) => e.fmt(f),
-        }
-    }
-}
-
-impl error::Error for ClassifyError {}
-
-type Result<T> = result::Result<T, ClassifyError>;
+type Result<T> = result::Result<T, Box<dyn error::Error>>;
 
 fn count_kmers_in_read(hap_a_kmers: &kmer::KmerSet, hap_b_kmers: &kmer::KmerSet,
-                       read: &seq::Record, k: usize) -> Result<(u32, u32)> {
+                       read: &seq::SeqRecord, k: usize) -> Result<(u32, u32)> {
 
     let mut hap_a_count: u32 = 0;
     let mut hap_b_count: u32 = 0;
 
-    for i in 0..(read.seq().len() - k + 1) {
-        let bits = kmer::get_canonical_repr(&read.seq()[i..i+k])
-            .and_then(|k| kmer::kmer_to_bits(&k))
-            .map_err(|e| ClassifyError::Kmer(e))?;
+    for i in 0..(read.seq.len() - k + 1) {
+        let bits = kmer::get_canonical_repr(&read.seq[i..i+k])
+            .and_then(|k| kmer::kmer_to_bits(&k))?;
 
         if hap_a_kmers.contains(&bits) {
             hap_a_count += 1;
@@ -97,9 +78,12 @@ mod tests {
 
     #[test]
     fn test_count() {
-        let read = seq::Record::Fasta(fasta::Record::new(
-                ">test\nACGGGCATCGCGGC")
-            .unwrap());
+        let read = seq::SeqRecord {
+            id: "test".to_string(),
+            seq: "ACGGGCATCGCGGC".to_string(),
+            entry_string: ">test\nACGGGCATCGCGGC".to_string(),
+        };
+
         let hap_a_kmer_strings = ["ACGGG", "CGGGC", "AAAAA"];
         let hap_b_kmer_strings = ["ACGGG", "TTTTC", "GATAT"];
         let k: usize = 5;

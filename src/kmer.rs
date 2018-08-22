@@ -95,7 +95,8 @@ pub fn reverse_complement(sequence: &str) -> Result<String> {
 pub fn get_canonical_repr(kmer: &str) -> Result<String> {
     let revcomp = reverse_complement(kmer)?;
 
-    Ok(if kmer < &revcomp {kmer.to_string()} else {revcomp.to_string()})
+    Ok(if kmer.to_string() < revcomp {
+        kmer.to_string()} else {revcomp.to_string()})
 }
 
 pub fn get_kmer_size(file: File) -> Result<usize> {
