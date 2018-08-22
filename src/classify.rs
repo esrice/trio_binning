@@ -1,9 +1,8 @@
 use kmer;
 use seq;
-use std::result;
-use std::error;
-use std::fmt;
-use std::cmp;
+use std::{result, error, fmt, cmp};
+use std::fs::File;
+use std::io::Write;
 
 struct HaplotypeScores {
     hap_a_score: f32,
@@ -54,23 +53,68 @@ pub fn calc_scaling_factors(hap_a_kmers: &kmer::KmerSet,
     (scaling_factor_a, scaling_factor_b)
 }
 
+///
+/// # Errors
+/// io::Error -- if any input or output file can't be opened
+/// seq::ExtensionError -- if the input file type cannot be determined
 pub fn classify_unpaired(hap_a_kmers: &kmer::KmerSet,
                          hap_b_kmers: &kmer::KmerSet,
-                         input_reads_filename: &str, hap_a_out_prefix: &str,
-                         hap_b_out_prefix: &str, hap_u_out_prefix: &str)
-    -> Result<()> {
+                         input_reads_filename: &str,
+                         hap_a_out_prefix: &str,
+                         hap_b_out_prefix: &str,
+                         hap_u_out_prefix: &str,
+                         k: usize) -> Result<()> {
+
+    // set up input stream
+    // this can return io::Error or seq::ExtensionError
+    let input_reader = seq::SeqReader::from_path(input_reads_filename)?;
+
+    // set up output streams
+    // TODO figure out correct extensions based on input_reader type
+    // TODO gzip output support
+    let mut hap_a_out = File::create(hap_a_out_prefix)?; // io::Error
+    let mut hap_b_out = File::create(hap_b_out_prefix)?; // io::Error
+    let mut hap_u_out = File::create(hap_u_out_prefix)?; // io::Error
 
     // calculate read-count scaling factors
     let (scaling_factor_a, scaling_factor_b) =
         calc_scaling_factors(hap_a_kmers, hap_b_kmers);
 
-    unimplemented!()
+    for result in input_reader {
+        let record = result?;
+        let (hap_a_count, hap_b_count) = count_kmers_in_read(
+            hap_a_kmers, hap_b_kmers, &record, k)?;
+        let hap_a_score = (hap_a_count as f32) * scaling_factor_a;
+        let hap_b_score = (hap_b_count as f32) * scaling_factor_b;
+
+        let mut haplotype = "?";
+        if hap_a_score > hap_b_score {
+            hap_a_out.write(record.entry_string.as_bytes())?;
+            haplotype = "A";
+        } else if hap_b_score > hap_a_score {
+            hap_b_out.write(record.entry_string.as_bytes())?;
+            haplotype = "B";
+        } else {
+            hap_u_out.write(record.entry_string.as_bytes())?;
+            haplotype = "U";
+        }
+        println!("{}\t{}\t{}\t{}", record.id, haplotype,
+                 hap_a_score, hap_b_score);
+    }
+
+    Ok(())
 }
 
 pub fn classify_paired(hap_a_kmers: &kmer::KmerSet, hap_b_kmers: &kmer::KmerSet,
-                   input_reads_filename_A: &str, input_reads_filename_B: &str,
+                   input_reads_filename_a: &str, input_reads_filename_b: &str,
                    hap_a_out_prefix: &str, hap_b_output_prefix: &str,
-                   hap_u_out_prefix: &str) -> Result<()> { unimplemented!() }
+                   hap_u_out_prefix: &str) -> Result<()> {
+
+    // calculate read-count scaling factors
+    let (scaling_factor_a, scaling_factor_b) =
+        calc_scaling_factors(hap_a_kmers, hap_b_kmers);
+    unimplemented!()
+}
 
 #[cfg(test)]
 mod tests {
@@ -80,12 +124,12 @@ mod tests {
     fn test_count() {
         let read = seq::SeqRecord {
             id: "test".to_string(),
-            seq: "ACGGGCATCGCGGC".to_string(),
-            entry_string: ">test\nACGGGCATCGCGGC".to_string(),
+            seq: "AACAACGCGCGTCGGTATCT".to_string(),
+            entry_string: ">test\nAACAACGCGCGTCGGTATCT".to_string(),
         };
 
-        let hap_a_kmer_strings = ["ACGGG", "CGGGC", "AAAAA"];
-        let hap_b_kmer_strings = ["ACGGG", "TTTTC", "GATAT"];
+        let hap_a_kmer_strings = ["AACAA", "AGATA", "TTTTT"];
+        let hap_b_kmer_strings = ["GATTT", "AGTCG", "AACGC"];
         let k: usize = 5;
 
         let hap_a_kmer_bits: kmer::KmerSet = hap_a_kmer_strings.iter()

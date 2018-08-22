@@ -74,7 +74,7 @@ impl<T: Read> Iterator for SeqReader<T> {
                 };
 
                 let mut entry_utf: Vec<u8> = Vec::new();
-                record.write(&mut entry_utf);
+                record.write(&mut entry_utf).unwrap();
 
                 Some(Ok(SeqRecord {
                     // I'm not handling utf8 errors because bleh. Maybe later.
@@ -94,7 +94,7 @@ impl<T: Read> Iterator for SeqReader<T> {
                 };
 
                 let mut entry_utf: Vec<u8> = Vec::new();
-                record.write(&mut entry_utf);
+                record.write(&mut entry_utf).unwrap();
 
                 Some(Ok(SeqRecord {
                     // I'm not handling utf8 errors because bleh. Maybe later.
