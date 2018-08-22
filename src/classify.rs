@@ -4,6 +4,7 @@ use seq::{self, fasta};
 use std::result;
 use std::error;
 use std::fmt;
+use std::cmp;
 
 struct HaplotypeScores {
     hap_a_score: f32,
@@ -54,12 +55,34 @@ fn count_kmers_in_read(hap_a_kmers: &kmer::KmerSet, hap_b_kmers: &kmer::KmerSet,
     Ok((hap_a_count, hap_b_count))
 }
 
+/// look at the sizes of the k-mer sets and use these to calculating scaling
+/// factors. The original program divides read haplotype counts by the size
+/// of the k-mer set for that haplotype, resulting in a really tiny number.
+/// In order to make it more pleasant for humans to look at, we multiply
+/// both scaling factors by the size of the larger k-mer set so that the
+/// scaling factors are close to 1.
+pub fn calc_scaling_factors(hap_a_kmers: &kmer::KmerSet,
+                            hap_b_kmers: &kmer::KmerSet) -> (f32, f32) {
+
+    let num_hap_a_kmers = hap_a_kmers.len();
+    let num_hap_b_kmers = hap_b_kmers.len();
+    let max_num_kmers = cmp::max(num_hap_a_kmers, num_hap_b_kmers);
+    let scaling_factor_a = (max_num_kmers as f32) / (num_hap_a_kmers as f32);
+    let scaling_factor_b = (max_num_kmers as f32) / (num_hap_b_kmers as f32);
+
+    (scaling_factor_a, scaling_factor_b)
+}
 
 pub fn classify_unpaired(hap_a_kmers: &kmer::KmerSet,
                          hap_b_kmers: &kmer::KmerSet,
                          input_reads_filename: &str, hap_a_out_prefix: &str,
                          hap_b_out_prefix: &str, hap_u_out_prefix: &str)
     -> Result<()> {
+
+    // calculate read-count scaling factors
+    let (scaling_factor_a, scaling_factor_b) =
+        calc_scaling_factors(hap_a_kmers, hap_b_kmers);
+
     unimplemented!()
 }
 
