@@ -4,8 +4,28 @@ This repository contains programs implementing the [trio-binning assembly method
 ## Installation
 ### Requirements
 * [Jellyfish](https://github.com/gmarcais/Jellyfish)
+* Python
+
+### Binary package
+A binary package compiled for 64-bit linux can be downloaded on the [release](https://github.com/esrice/trio_binning/releases) page. Then, just unzip it and you're done.
+
+```
+tar zxf trio_binning.tar.gz
+```
+
+### From source
+To compile from source, you'll need the following dependencies:
+* rust (`curl https://sh.rustup.rs -sSf | sh`)
 * clang (you can use `sudo apt-get install clang` to install this in ubuntu)
 * liblzma (`sudo apt-get install liblzma-dev`)
+
+Then, run the following commands to download and compile:
+```
+git clone https://github.com/esrice/trio_binning.git
+cd trio_binning
+cargo build --release
+```
+There will now be a binary in `target/release/classify_reads`.
 
 ## Finding unique k-mers in parental genomes
 `find-unique-kmers` is a script that uses the program Jellyfish to count all the k-mers appearing in all of the paternal reads, and then automatically chooses cutoffs as described in the paper and dumps the k-mers with frequency meetings these cutoffs into output files. It is left up to the user to do the set comparison using the bash tools `sort` and `comm` as shown below, although I hope to write a program to do this automatically soon. Here is an example of how one would use these together to find all the k-mers unique to a maternal and paternal genome:
