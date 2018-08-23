@@ -62,6 +62,10 @@ fn parse_args() -> ArgMatches<'static> {
              .takes_value(true)
              .default_value("hapU")
              .help("Prefix for haplotype U output"))
+        .arg(Arg::with_name("compress-output")
+             .short("c")
+             .long("compress-output")
+             .help("Output gz-compressed files"))
         .get_matches()
 }
 
@@ -84,7 +88,8 @@ fn run() -> BoxResult<()> {
             classify_unpaired(&hap_a_kmers, &hap_b_kmers, input_reads_filename,
                               args.value_of("hapA-out-prefix").unwrap(),
                               args.value_of("hapB-out-prefix").unwrap(),
-                              args.value_of("hapU-out-prefix").unwrap(), k)?;
+                              args.value_of("hapU-out-prefix").unwrap(),
+                              args.is_present("compress-output"), k)?;
         }
         None => {
             let filenames: Vec<&str> = args.values_of("input-paired")
