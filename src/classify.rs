@@ -99,7 +99,9 @@ pub fn classify_unpaired(hap_a_kmers: &kmer::KmerSet,
     // figure out correct extensions for output files based on input_reader type
     let extension = match input_reader {
         seq::SeqReader::Fasta(_) => ".fa",
-        seq::SeqReader::Fastq(_) => ".fq",
+        // write bam entries as fastq because there's really no good reason to
+        // output unaligned reads as bam.
+        seq::SeqReader::Fastq(_) | seq::SeqReader::Bam(_,_) => ".fq",
     };
 
     // set up output streams
@@ -143,9 +145,9 @@ pub fn classify_unpaired(hap_a_kmers: &kmer::KmerSet,
 ///
 /// # Examples
 /// Let's write an entry to a compressed fasta file at `hapA.fa.gz`:
-/// ```no_run
+/// ```ignore
 /// let mut writer = open_writer("hapA", ".fa", true);
-/// writer.write(b">test\nACTGCATCTAG")?;
+/// writer.write(b">test\nACTGCATCTAG").unwrap();
 /// ```
 fn open_writer(prefix: &str, extension: &str, gzip: bool) -> Result<BoxWrite> {
     if gzip {
