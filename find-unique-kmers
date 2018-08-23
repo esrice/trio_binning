@@ -1,0 +1,204 @@
+#!/usr/bin/env python3
+"""
+find-unique-kmers -- Given multiple short-read libraries
+find k-mers that are unique to each.
+
+Author: Edward S. Rice (erice11@unl.edu)
+"""
+
+
+import argparse
+import os
+import sys
+import math
+
+from subprocess import Popen, PIPE, check_call, check_output
+
+class HistogramError(Exception):
+    def __init__(self, histo_cmd):
+        self.message = "Could not find min and max counts in histogram. " + \
+                "Try running the following command yourself and manually " + \
+                "choosing cutoffs: {}".format(histo_cmd)
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Given multiple short-read '
+            'libraries, find k-mers that are unique to each library.')
+    parser.add_argument('-k', '--kmer-size', type=int, required=True)
+    parser.add_argument('--path-to-jellyfish', default='jellyfish',
+            help="path to the jellyfish binary, in case it's not in PATH")
+    parser.add_argument('-p', '--threads', type=int, default=1,
+            help='number of threads to use in jellyfish [1]')
+    parser.add_argument('-e', '--error-rate', type=float, default=0.01,
+            help='approximate error rate of sequencer [0.01]')
+    parser.add_argument('-g', '--genome-size', type=float, default=3,
+            help='approximate genome size in GB [3]')
+    parser.add_argument('-o', '--outpath', default='.', help='Prefix to write '
+            'output haplotypes to')
+    parser.add_argument('read_files', nargs='+', help='one comma-separated '
+            'list of file paths for each library being compared. Files can be '
+            'in fasta or fastq format, and uncompressed or gzipped.')
+    return parser.parse_args()
+
+
+def run_jellyfish_count(infile_paths, outfile_path, k, threads=1,
+        jf_path='jellyfish', error_rate=0.01, genome_size=3):
+    """
+    Given an input fasta/q file, run jellyfish count on it.
+
+    Arguments:
+    - infile_path: list of paths to input fasta/q(.gz) file
+    - outfile_path: place to put jellyfish database file
+    - k: k-mer size
+    - threads: # threads to give jellyfish
+    - jf_path: path to jellyfish binary
+    - out_dir: directory for output files
+    - genome_size: approximate size of genome, in GB
+    """
+
+    # calculate hash sizes based on the infile sizes, sequencing error rate,
+    # and genome size
+    sum_infile_sizes = sum(map(os.path.getsize, infile_paths))
+    hash_size = math.floor(sum_infile_sizes * error_rate * k + genome_size*1e9)
+
+    # use 'zcat -f' if any of the input files are compressed; otherwise, just
+    # use plain old 'cat'. The '-f' flag allows zcat to work on a mix of
+    # compressed and uncompressed files.
+    if any(map(lambda x: x.endswith('.gz'), infile_paths)):
+        cat_cmd = ['zcat', '-f'] + infile_paths
+    else:
+        cat_cmd = ['cat'] + infile_paths
+
+    jf_cmd = [jf_path, 'count', '-m', k, '-s', hash_size, '-C',
+            '-t', threads, '-o', outfile_path, '/dev/fd/0']
+    jf_cmd = list(map(str, jf_cmd))
+
+    cat_process = Popen(cat_cmd, stdout=PIPE)
+    check_call(jf_cmd, stdin=cat_process.stdout, stderr=sys.stderr)
+    cat_process.stdout.close()
+
+def analyze_histogram(jellyfish_db, num_threads=1, jf_cmd='jellyfish'):
+    """
+    Given a jellyfish database, run jellyfish histo to
+    compute a histogram of k-mer counts, and then use this
+    histogram to choose minimum and maximum k-mer counts
+    for finding unique k-mers.
+
+    Arguments:
+    - jellyfish_db: path to jellyfish database
+    - num_threads: number of threads to give jellyfish
+
+    Returns: (min_coverage, max_coverage), the min and max
+             k-mer counts for finding unique k-mers
+    """
+
+    histo_cmd = [jf_cmd, 'histo', '-t', num_threads, jellyfish_db]
+    histo_cmd = list(map(str, histo_cmd))
+    min_coverage, max_coverage = False, False
+
+    histo_proc = Popen(histo_cmd, stdout=PIPE, stderr=sys.stderr, bufsize=1,
+            universal_newlines=True)
+
+    for line in histo_proc.stdout:
+        coverage, count = map(int, line.strip().split())
+        if coverage != 1: # don't do anything except record the first entry
+
+            # if we haven't yet found the minimum coverage, we're looking for
+            # a local minimum, i.e., a place where count starts increasing
+            if not min_coverage:
+                if count > last_count:
+                    min_coverage = coverage - 1
+                    min_coverage_count = last_count
+
+            # if we have found the minimum coverage already, we're looking for
+            # the place where the count dips below the count at min_coverage
+            elif not max_coverage:
+                if count < min_coverage_count:
+                    max_coverage = coverage
+                    break
+
+        last_count = count
+
+    histo_proc.stdout.close()
+
+    if not min_coverage or not max_coverage:
+        raise HistogramError(histo_cmd)
+
+    if max_coverage - min_coverage < 5:
+        print('WARNING: min and max coverage not very far apart. This may be '
+                'a result of coverage being too low. Try running "' +
+                ' '.join(histo_cmd) + '" and taking a look at this histogram '
+                'yourself.', file=sys.stderr)
+
+    return min_coverage, max_coverage
+
+def run_jellyfish_dump(jellyfish_db, min_count, max_count, jf_cmd='jellyfish'):
+    """
+    Given a jellyfish database and a min and max count to
+    output, dump all k-mers with counts in that range
+
+    Arguments:
+    - jellyfish_db: path to jellyfish database
+    - min_count: minimum k-mer count to output a k-mer
+    - max_count: maximum k-mer count to output a k-mer
+    - jf_cmd: path to jellyfish binary
+
+    Yields: a k-mer string for each k-mer in the dump
+    """
+
+    jellyfish_cmd = [jf_cmd, 'dump', '-c', '-t', '-L', min_count,
+            '-U', max_count, jellyfish_db]
+    jellyfish_cmd = list(map(str, jellyfish_cmd))
+    jellyfish_proc = Popen(jellyfish_cmd, stdout=PIPE, stderr=sys.stderr,
+            bufsize=1, universal_newlines=True)
+
+    kmer_set = set()
+    for line in jellyfish_proc.stdout:
+        kmer, count = line.strip().split('\t')
+        yield kmer
+
+    jellyfish_proc.stdout.close()
+
+def main():
+    args = parse_args()
+
+    # Count k-mers in all haplotypes
+    jf_databases = [] # list of (jf_database_path, min_count, max_count)
+    for i, haplotype_files_string in enumerate(args.read_files):
+        print("Counting k-mers in haplotype {}...".format(i),
+                file=sys.stderr)
+        haplotype_files = haplotype_files_string.split(',')
+        outfile_path = "{}/haplotype{}.jf".format(args.outpath, i)
+        run_jellyfish_count(haplotype_files, outfile_path, args.kmer_size,
+                args.threads, args.path_to_jellyfish, args.error_rate,
+                args.genome_size)
+
+        # get the histogram for this haplotype and analyze it
+        print("Computing and analyzing histogram...", file=sys.stderr)
+        min_count, max_count = analyze_histogram(outfile_path, args.threads,
+                args.path_to_jellyfish)
+        print("Using counts in range [{},{}].".format(min_count, max_count),
+                file=sys.stderr)
+
+	# dump the k-mers into a file
+        dump_file = open('{}/haplotype{}.dump'.format(args.outpath, i), 'w')
+        dump_iter = run_jellyfish_dump(outfile_path, min_count, max_count,
+                args.path_to_jellyfish)
+        for kmer in dump_iter:
+            print(kmer, file=dump_file)
+
+    print("""
+    Done dumping "useful" k-mers, but the set comparison part has been left to
+    you because python is too slow and doesn't manage its memory well. Here is
+    an example of how you could use the dump files created by this program
+    along with the unix utilities sort and comm to finish the job:
+
+    cut -f1 haplotype0.dump | sort -T /mnt/tmp --parallel 10 > hap0.kmers
+    cut -f1 haplotype1.dump | sort -T /mnt/tmp --parallel 10 > hap1.kmers
+
+    comm -23 hap0.kmers hap1.kmers > hap0-only.kmers
+    comm -13 hap0.kmers hap1.kmers > hap1-only.kmers
+    """)
+
+if __name__ == '__main__':
+    main()
+
