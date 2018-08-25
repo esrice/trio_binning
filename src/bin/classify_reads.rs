@@ -5,16 +5,42 @@ use trio_binning::kmer::*;
 use trio_binning::classify::*;
 use std::fs::File;
 use clap::{Arg, App, ArgGroup, ArgMatches};
-use std::process;
-use std::error::Error;
+use std::{process, error, thread, fmt};
 
-type BoxResult<T> = Result<T, Box<Error>>;
+type BoxResult<T> = Result<T, Box<error::Error>>;
+
+#[derive(Debug)]
+struct SimpleError {
+    message: String,
+}
+
+impl SimpleError {
+    fn new(message: String) -> Box<SimpleError> {
+        Box::new(SimpleError {
+            message: message,
+        })
+    }
+}
+
+impl fmt::Display for SimpleError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl error::Error for SimpleError {}
 
 fn parse_args() -> ArgMatches<'static> {
     App::new("classify_reads")
         .version("0.1.0")
         .author("Edward S. Rice <erice11@unl.edu>")
         .about("Classify reads based on haplotype")
+        .arg(Arg::with_name("threads")
+             .short("t")
+             .long("threads")
+             .takes_value(true)
+             .default_value("1")
+             .help("Number of threads to use"))
         .arg(Arg::with_name("hapA-kmers")
              .short("a")
              .long("hapA-kmers")
@@ -69,17 +95,65 @@ fn parse_args() -> ArgMatches<'static> {
         .get_matches()
 }
 
+//fn asdf(filename: String) -> Result<> {
+//    let f = File::open(filename)?;
+//    let s = read_kmers_into_set(f)?;
+//
+//}
+
+fn simple_error<E: 'static + error::Error>(e: E) -> SimpleError {
+    SimpleError {
+        message: e.to_string(),
+    }
+}
+
 fn run() -> BoxResult<()> {
     let args = parse_args();
+
+    // get the number of threads to use
+    let num_threads = match args.value_of("threads").unwrap().parse::<u32>() {
+        Ok(t) => {
+            if t >= 1 { t } else {
+                return Err(SimpleError::new(
+                    format!("Number of threads must be >= 1: {}", t)
+                ))
+            }
+        },
+        Err(_) =>
+            return Err(SimpleError::new(
+                format!("--threads argument not an integer: {}",
+                        args.value_of("threads").unwrap())
+            )),
+    };
 
     // figure out k by looking at the first line of one of the kmers file
     let k = get_kmer_size(File::open(args.value_of("hapA-kmers").unwrap())?)?;
 
     // read k-mers into HashSets
-    let hap_a_kmers = read_kmers_into_set(File::open(
-            args.value_of("hapA-kmers").unwrap())?)?;
-    let hap_b_kmers = read_kmers_into_set(File::open(
-            args.value_of("hapB-kmers").unwrap())?)?;
+    let (hap_a_kmers, hap_b_kmers);
+    if num_threads > 1 { // trying out some concurrency!
+        let hap_a_kmers_filename = args.value_of("hapA-kmers")
+            .unwrap().to_string();
+
+        // read the kmers from haplotype A in a spawned thread
+        // error::Error does not implement Send, so the thread has to return a
+        // concrete error type, in this case, SimpleError.
+        let handle = thread::spawn(move ||
+            File::open(hap_a_kmers_filename).map_err(simple_error)
+                .and_then(|f| read_kmers_into_set(f).map_err(simple_error)));
+
+        // read the kmers from haplotype B in the main thread
+        hap_b_kmers = read_kmers_into_set(File::open(
+                args.value_of("hapB-kmers").unwrap())?)?;
+
+        // wait to continue until the spawned thread is done
+        hap_a_kmers = handle.join().unwrap()?;
+    } else {
+        hap_a_kmers = read_kmers_into_set(File::open(
+                args.value_of("hapA-kmers").unwrap())?)?;
+        hap_b_kmers = read_kmers_into_set(File::open(
+                args.value_of("hapB-kmers").unwrap())?)?;
+    }
 
     // call the correct function depending on whether the input is unpaired
     // reads or paired-end reads
