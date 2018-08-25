@@ -18,7 +18,7 @@ impl fmt::Display for KmerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             KmerError::InvalidBaseError(base) =>
-                write!(f, "Invalid base character: {}", base),
+                write!(f, "Invalid base character: '{}'", base),
             KmerError::LengthError(length) =>
                 write!(f, "k-mer length ({}) is greater than maximum ({})",
                     length, MAX_KMER_LENGTH),
