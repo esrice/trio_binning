@@ -111,7 +111,7 @@ fn run() -> BoxResult<()> {
     let args = parse_args();
 
     // get the number of threads to use
-    let num_threads = match args.value_of("threads").unwrap().parse::<u32>() {
+    let num_threads = match args.value_of("threads").unwrap().parse::<usize>() {
         Ok(t) => {
             if t >= 1 { t } else {
                 return Err(SimpleError::new(
@@ -130,6 +130,7 @@ fn run() -> BoxResult<()> {
     let k = get_kmer_size(File::open(args.value_of("hapA-kmers").unwrap())?)?;
 
     // read k-mers into HashSets
+    eprintln!("Reading k-mers into sets...");
     let (hap_a_kmers, hap_b_kmers);
     if num_threads > 1 { // trying out some concurrency!
         let hap_a_kmers_filename = args.value_of("hapA-kmers")
@@ -159,20 +160,23 @@ fn run() -> BoxResult<()> {
     // reads or paired-end reads
     match args.value_of("input-unpaired") {
         Some(input_reads_filename) => {
-            classify_unpaired(&hap_a_kmers, &hap_b_kmers, input_reads_filename,
+            eprintln!("Classifying reads...");
+            classify_unpaired(hap_a_kmers, hap_b_kmers, input_reads_filename,
                               args.value_of("hapA-out-prefix").unwrap(),
                               args.value_of("hapB-out-prefix").unwrap(),
                               args.value_of("hapU-out-prefix").unwrap(),
-                              args.is_present("compress-output"), k)?;
+                              args.is_present("compress-output"),
+                              k, num_threads)?;
         }
         None => {
-            let filenames: Vec<&str> = args.values_of("input-paired")
-                .unwrap().collect();
-            classify_paired(&hap_a_kmers, &hap_b_kmers, filenames[0],
-                            filenames[1],
-                            args.value_of("hapA-out-prefix").unwrap(),
-                            args.value_of("hapB-out-prefix").unwrap(),
-                            args.value_of("hapU-out-prefix").unwrap())?;
+            unimplemented!();
+//            let filenames: Vec<&str> = args.values_of("input-paired")
+//                .unwrap().collect();
+//            classify_paired(&hap_a_kmers, &hap_b_kmers, filenames[0],
+//                            filenames[1],
+//                            args.value_of("hapA-out-prefix").unwrap(),
+//                            args.value_of("hapB-out-prefix").unwrap(),
+//                            args.value_of("hapU-out-prefix").unwrap())?;
         }
     }
     Ok(())

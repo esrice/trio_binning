@@ -32,13 +32,14 @@ pub struct SeqRecord {
     pub entry_string: String,
 }
 
-pub enum SeqReader<T: Read> {
+pub enum SeqReader<T: Read + Send + 'static> {
     Fasta(fasta::Reader<T>),
     Fastq(fastq::Reader<T>),
     Bam(bam::Reader, bam::record::Record),
 }
 
-fn open_gz_or_uncompressed(filename: &str) -> Result<Box<dyn Read>> {
+fn open_gz_or_uncompressed(filename: &str) ->
+    Result<Box<dyn Read + Send + 'static>> {
     if filename.ends_with(".gz") {
         Ok(Box::new(GzDecoder::new(File::open(filename)?)))
     } else {
@@ -46,8 +47,9 @@ fn open_gz_or_uncompressed(filename: &str) -> Result<Box<dyn Read>> {
     }
 }
 
-impl SeqReader<Box<dyn Read>> {
-    pub fn from_path(path: &str) -> Result<SeqReader<Box<dyn Read>>> {
+impl SeqReader<Box<dyn Read + Send + 'static>> {
+    pub fn from_path(path: &str)
+        -> Result<SeqReader<Box<dyn Read + Send + 'static>>> {
         if path.ends_with(".bam") {
             return Ok(SeqReader::Bam(
                     bam::Reader::from_path(path)?,
@@ -68,7 +70,7 @@ impl SeqReader<Box<dyn Read>> {
     }
 }
 
-impl<T: Read> Iterator for SeqReader<T> {
+impl<T: Read + Send + 'static> Iterator for SeqReader<T> {
     type Item = Result<SeqRecord>;
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -2,7 +2,8 @@ extern crate flate2;
 
 use kmer;
 use seq;
-use std::{result, error, fmt, cmp};
+use threads;
+use std::{result, error, cmp};
 use std::fs::File;
 use std::io::{Write, BufWriter};
 use self::flate2::Compression;
@@ -20,15 +21,17 @@ type Result<T> = result::Result<T, Box<dyn error::Error>>;
 ///
 /// Returns a tuple `(hap_a_count, hap_b_count)` containing the number of k-mers
 /// from `hap_a_kmers` and `hap_b_kmers`, respectively, appearing in `read`.
-fn count_kmers_in_read(hap_a_kmers: &kmer::KmerSet, hap_b_kmers: &kmer::KmerSet,
-                       read: &seq::SeqRecord, k: usize) -> Result<(u32, u32)> {
+pub fn count_kmers_in_read(hap_a_kmers: &kmer::KmerSet,
+                           hap_b_kmers: &kmer::KmerSet,
+                           read: &seq::SeqRecord,
+                           k: usize) -> Result<(u32, u32)> {
 
     let mut hap_a_count: u32 = 0;
     let mut hap_b_count: u32 = 0;
 
     for i in 0..(read.seq.len() - k + 1) {
         let bits = kmer::get_canonical_repr(&read.seq[i..i+k])
-            .and_then(|k| kmer::kmer_to_bits(&k))?;
+            .and_then(|kmer| kmer::kmer_to_bits(&kmer))?;
 
         if hap_a_kmers.contains(&bits) {
             hap_a_count += 1;
@@ -65,7 +68,7 @@ pub fn calc_scaling_factors(hap_a_kmers: &kmer::KmerSet,
 // type alias for something that implements Write. We need this because some of
 // the code in this file opens up either a GzipEncoder or a File and then uses
 // them the same way downstream.
-type BoxWrite = Box<dyn Write>;
+type BoxWrite = Box<dyn Write + Send + 'static>;
 
 /// Classify all the reads in a fasta/q file into one of two haplotypes, or as
 /// an unknown haplotype, based on the kmer composition.
@@ -83,14 +86,15 @@ type BoxWrite = Box<dyn Write>;
 /// # Errors
 /// * [io::Error]: if any input or output file can't be opened
 /// * [seq::ExtensionError]: if the input file type cannot be determined
-pub fn classify_unpaired(hap_a_kmers: &kmer::KmerSet,
-                         hap_b_kmers: &kmer::KmerSet,
+pub fn classify_unpaired(hap_a_kmers: kmer::KmerSet,
+                         hap_b_kmers: kmer::KmerSet,
                          input_reads_filename: &str,
                          hap_a_out_prefix: &str,
                          hap_b_out_prefix: &str,
                          hap_u_out_prefix: &str,
                          gzip_output: bool,
-                         k: usize) -> Result<()> {
+                         k: usize,
+                         num_threads: usize) -> Result<()> {
 
     // set up input stream
     // this can return io::Error or seq::ExtensionError
@@ -109,30 +113,35 @@ pub fn classify_unpaired(hap_a_kmers: &kmer::KmerSet,
     let mut hap_b_out = open_writer(hap_b_out_prefix, extension, gzip_output)?;
     let mut hap_u_out = open_writer(hap_u_out_prefix, extension, gzip_output)?;
 
-    // calculate read-count scaling factors
-    let (scaling_factor_a, scaling_factor_b) =
-        calc_scaling_factors(hap_a_kmers, hap_b_kmers);
+    if num_threads == 1 {
+        // calculate read-count scaling factors
+        let (scaling_factor_a, scaling_factor_b) =
+            calc_scaling_factors(&hap_a_kmers, &hap_b_kmers);
 
-    for result in input_reader {
-        let record = result?;
-        let (hap_a_count, hap_b_count) = count_kmers_in_read(
-            hap_a_kmers, hap_b_kmers, &record, k)?;
-        let hap_a_score = (hap_a_count as f32) * scaling_factor_a;
-        let hap_b_score = (hap_b_count as f32) * scaling_factor_b;
+        for result in input_reader {
+            let record = result?;
+            let (hap_a_count, hap_b_count) = count_kmers_in_read(
+                &hap_a_kmers, &hap_b_kmers, &record, k)?;
+            let hap_a_score = (hap_a_count as f32) * scaling_factor_a;
+            let hap_b_score = (hap_b_count as f32) * scaling_factor_b;
 
-        let mut haplotype = "?";
-        if hap_a_score > hap_b_score {
-            hap_a_out.write(record.entry_string.as_bytes())?;
-            haplotype = "A";
-        } else if hap_b_score > hap_a_score {
-            hap_b_out.write(record.entry_string.as_bytes())?;
-            haplotype = "B";
-        } else {
-            hap_u_out.write(record.entry_string.as_bytes())?;
-            haplotype = "U";
+            let mut haplotype;
+            if hap_a_score > hap_b_score {
+                hap_a_out.write(record.entry_string.as_bytes())?;
+                haplotype = "A";
+            } else if hap_b_score > hap_a_score {
+                hap_b_out.write(record.entry_string.as_bytes())?;
+                haplotype = "B";
+            } else {
+                hap_u_out.write(record.entry_string.as_bytes())?;
+                haplotype = "U";
+            }
+            println!("{}\t{}\t{}\t{}", record.id, haplotype,
+                     hap_a_score, hap_b_score);
         }
-        println!("{}\t{}\t{}\t{}", record.id, haplotype,
-                 hap_a_score, hap_b_score);
+    } else {
+        threads::count_kmers_multithreaded(hap_a_kmers, hap_b_kmers,
+            input_reader, hap_a_out, hap_b_out, hap_u_out, num_threads, k)?;
     }
 
     Ok(())
@@ -159,16 +168,16 @@ fn open_writer(prefix: &str, extension: &str, gzip: bool) -> Result<BoxWrite> {
     }
 }
 
-pub fn classify_paired(hap_a_kmers: &kmer::KmerSet, hap_b_kmers: &kmer::KmerSet,
-                   input_reads_filename_a: &str, input_reads_filename_b: &str,
-                   hap_a_out_prefix: &str, hap_b_output_prefix: &str,
-                   hap_u_out_prefix: &str) -> Result<()> {
-
-    // calculate read-count scaling factors
-    let (scaling_factor_a, scaling_factor_b) =
-        calc_scaling_factors(hap_a_kmers, hap_b_kmers);
-    unimplemented!()
-}
+//pub fn classify_paired(hap_a_kmers: &kmer::KmerSet, hap_b_kmers: &kmer::KmerSet,
+//                   input_reads_filename_a: &str, input_reads_filename_b: &str,
+//                   hap_a_out_prefix: &str, hap_b_output_prefix: &str,
+//                   hap_u_out_prefix: &str) -> Result<()> {
+//
+//    // calculate read-count scaling factors
+//    let (scaling_factor_a, scaling_factor_b) =
+//        calc_scaling_factors(hap_a_kmers, hap_b_kmers);
+//    unimplemented!()
+//}
 
 #[cfg(test)]
 mod tests {
