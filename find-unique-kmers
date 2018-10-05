@@ -74,7 +74,7 @@ def run_kmc(infile_paths, outfile_path, k, threads=1, kmc_path='kmc',
         # clean up temp file
         os.remove(paths_list_file_path)
 
-def analyze_histogram(jellyfish_db, num_threads=1, jf_cmd='jellyfish'):
+def analyze_histogram(kmc_db, kmc_path='kmc', scratch_path='.'):
     """
     Given a jellyfish database, run jellyfish histo to
     compute a histogram of k-mer counts, and then use this
@@ -89,16 +89,18 @@ def analyze_histogram(jellyfish_db, num_threads=1, jf_cmd='jellyfish'):
              k-mer counts for finding unique k-mers
     """
 
-    histo_cmd = [jf_cmd, 'histo', '-t', num_threads, jellyfish_db]
-    histo_cmd = list(map(str, histo_cmd))
+    # run the kmc histogram program
+    temp_histogram_path = '{}/{}'.format(scratch_path,
+            random.randint(1, 9999999))
+    histo_cmd = [kmc_path + '_tools', 'transform', kmc_db, 'histogram',
+            temp_histogram_path]
+    check_call(histo_cmd)
+
+    # go through the histogram file looking for the first local minimum
     min_coverage, max_coverage = False, False
-
-    histo_proc = Popen(histo_cmd, stdout=PIPE, stderr=sys.stderr, bufsize=1,
-            universal_newlines=True)
-
-    for line in histo_proc.stdout:
+    for line in open(temp_histogram_path):
         coverage, count = map(int, line.strip().split())
-        if coverage != 1: # don't do anything except record the first entry
+        if coverage != 2: # don't do anything except record the first entry
 
             # if we haven't yet found the minimum coverage, we're looking for
             # a local minimum, i.e., a place where count starts increasing
@@ -116,7 +118,7 @@ def analyze_histogram(jellyfish_db, num_threads=1, jf_cmd='jellyfish'):
 
         last_count = count
 
-    histo_proc.stdout.close()
+    os.remove(temp_histogram_path)
 
     if not min_coverage or not max_coverage:
         raise HistogramError(histo_cmd)
@@ -169,13 +171,13 @@ def main():
         run_kmc(haplotype_files, outfile_path, args.kmer_size,
                 args.threads, args.path_to_kmc, args.scratch_dir)
 
-#        # get the histogram for this haplotype and analyze it
-#        print("Computing and analyzing histogram...", file=sys.stderr)
-#        min_count, max_count = analyze_histogram(outfile_path, args.threads,
-#                args.path_to_jellyfish)
-#        print("Using counts in range [{},{}].".format(min_count, max_count),
-#                file=sys.stderr)
-#
+        # get the histogram for this haplotype and analyze it
+        print("Computing and analyzing histogram...", file=sys.stderr)
+        min_count, max_count = analyze_histogram(outfile_path,
+                args.path_to_kmc, args.scratch_dir)
+        print("Using counts in range [{},{}].".format(min_count, max_count),
+                file=sys.stderr)
+
 #	# dump the k-mers into a file
 #        dump_file = open('{}/haplotype{}.dump'.format(args.outpath, i), 'w')
 #        dump_iter = run_jellyfish_dump(outfile_path, min_count, max_count,
