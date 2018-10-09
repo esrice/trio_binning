@@ -32,6 +32,32 @@ impl fmt::Display for TagError {
 
 impl error::Error for TagError {}
 
+#[derive(Debug)]
+struct SortError {
+    message: String,
+}
+
+impl SortError {
+    fn new() -> Box<SortError> {
+        Box::new(SortError {
+            message: "The two input files do not have qnames for their \
+                primary alignments in the same order. Did you sort the bam \
+                by read name? If so, please send a bug report to \
+                erice11@unl.edu explaining the alignment and sorting commands \
+                you used. This program has only been \
+                tested with bwa mem.".to_string(),
+        })
+    }
+}
+
+impl fmt::Display for SortError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl error::Error for SortError {}
+
 fn parse_args() -> ArgMatches<'static> {
     App::new("classify_hi_c")
         .version("0.1.0")
@@ -66,59 +92,42 @@ fn parse_args() -> ArgMatches<'static> {
         .get_matches()
 }
 
-/// If the read ID's of current_record_a and current_record_b are not the same,
-/// advance the reader that is behind the other one until they are the same.
-/// This function can return three different things:
-/// 1. Ok(false) if everything went fine and neither reader is at EOF
-/// 2. Ok(true) if one of the readers is at EOF
-/// 3. Err if there's an error reading or writing the bam files
-fn advance_until(in_bam_a: &mut bam::Reader,
-                 in_bam_b: &mut bam::Reader,
-                 out_bam_a: &mut bam::Writer,
-                 out_bam_b: &mut bam::Writer,
-                 current_record_a: &mut bam::Record,
-                 current_record_b: &mut bam::Record) -> BoxResult<bool> {
-
-    while current_record_a.qname() > current_record_b.qname() {
-        // if our iteration of A is ahead of B, advance B until it catches
-        // up, outputting the unpaired records
-        out_bam_b.write(current_record_b)?;
-        if read_or_eof(in_bam_b, current_record_b)? {
-            // make current_record_b empty so we don't print it twice
-            current_record_b.set_qname(b"EOF");
-            return Ok(true)
-        }
-    }
-
-    while current_record_b.qname() > current_record_a.qname() {
-        // if our iteration of B is ahead of A, advance A until it catches
-        // up, outputting the unpaired records
-        out_bam_a.write(&current_record_a)?;
-        if read_or_eof(in_bam_a, current_record_a)? {
-            // set qname of current record to "EOF" so we know we are at the
-            // end of the file ugh ugh ugh this is so ugly sorry
-            current_record_a.set_qname(b"EOF");
-            return Ok(true)
-        }
-    }
-
-    return Ok(false)
-}
-
-/// Read the next record in `in_bam` into `record`. Three things can happen:
-/// 1. Next record is successfully read. Return Ok(false).
-/// 2. Can't read next record because EOF! Return Ok(true).
-/// 3. Can't read next record because of some other problem. Return the error.
-fn read_or_eof(in_bam: &mut bam::Reader,
-               record: &mut bam::Record) -> BoxResult<bool> {
-    match in_bam.read(record) {
-        Ok(_) => return Ok(false),
+/// The only way to know if we've reached EOF using the `read` function (which
+/// I'm using because it's way more efficient than using an iterator) is by
+/// whether it returns a ``ReadError`. However, some `ReadError` types indicate
+/// actual problems, as opposed to EOF, so this is a wrapper function that
+/// returns:
+/// - `Ok(true)` if the next record was successfully read into `record`
+/// - `Ok(false)` if we've reached EOF
+/// - `Err(ReadError)` if there was a problem reading the bam file
+fn read_or_eof(reader: &mut bam::Reader,
+               record: &mut bam::record::Record) -> BoxResult<bool> {
+    match reader.read(record) {
+        Ok(_) => return Ok(true),
         Err(e) => {
             if let bam::ReadError::NoMoreRecord = e {
-                return Ok(true)
+                return Ok(false);
             } else {
-                return Err(Box::new(e))
+                return Err(Box::new(e));
             }
+        }
+    }
+}
+
+/// Keep reading until either the next primary alignment or EOF.
+/// Returns:
+/// - `Ok(true)` if `record` now contains the next primary alignment
+/// - `Ok(false)` if we reached EOF before finding a primary alignment
+/// - `Err(e)` if there was a problem reading the bam
+fn next_primary(reader: &mut bam::Reader,
+                record: &mut bam::record::Record)
+        -> BoxResult<bool> {
+    loop {
+        if !read_or_eof(reader, record)? {
+            return Ok(false);
+        }
+        if !(record.is_secondary() || record.is_supplementary()) {
+            return Ok(true);
         }
     }
 }
@@ -138,62 +147,36 @@ fn classify_hi_c(in_bam_a: &mut bam::Reader,
     // TODO have some check that the file is sorted by read name, or else the
     // program may exit without error but output empty files, which would be bad
 
-    let mut eof_a = read_or_eof(in_bam_a, &mut current_record_a)?;
-    let mut eof_b = read_or_eof(in_bam_b, &mut current_record_b)?;
-
     // continue reading records until we reach EOF in one of the files
+    let mut eof_a = !next_primary(in_bam_a, &mut current_record_a)?;
+    let mut eof_b = !next_primary(in_bam_b, &mut current_record_b)?;
     while !eof_a && !eof_b {
-        // we can only compare two alignments if they are of the same read, so
-        // if we are not looking at records describing the same read, we need to
-        // fix that. `advance_until` returns true if we've reached EOF of one of
-        // the bam files, so only do the score comparing stuff if it returns
-        // false.
-        if !advance_until(in_bam_a, in_bam_b,
-                          out_bam_a, out_bam_b,
-                          &mut current_record_a, &mut current_record_b)? {
-
-            // now that we have alignments of the same read in current_record_a
-            // and current_record_b, we can compare them. First, get the
-            // alignment scores from the "AS" tag of the bam record:
-            score_a = current_record_a.aux(b"AS")
-                .ok_or(TagError::new())
-                .map(|s| s.integer())?;
-            score_b = current_record_a.aux(b"AS")
-                .ok_or(TagError::new())
-                .map(|s| s.integer())?;
-
-            // then, output the higher-scoring alignment to its corresponding
-            // output file, or both if the scores are equal.
-            if score_a >= score_b {
-                out_bam_a.write(&current_record_a)?;
-            }
-
-            if score_b >= score_a {
-                out_bam_b.write(&current_record_b)?;
-            }
-
-            eof_a = read_or_eof(in_bam_a, &mut current_record_a)?;
-            eof_b = read_or_eof(in_bam_b, &mut current_record_b)?;
-        } else { // advance_until reached EOF for one of the files, but which?
-            if current_record_a.qname() == b"EOF" {
-                eof_a = true;
-            }
-
-            if current_record_b.qname() == b"EOF" {
-                eof_b = true;
-            }
+        if current_record_a.qname() != current_record_b.qname() {
+            return Err(SortError::new());
         }
-    }
 
-    // now that one of the files has reached EOF, we make sure both have
-    while !eof_a {
-        out_bam_a.write(&current_record_a)?;
-        eof_a = read_or_eof(in_bam_a, &mut current_record_a)?;
-    }
+        // now that we have alignments of the same read in current_record_a
+        // and current_record_b, we can compare them. First, get the
+        // alignment scores from the "AS" tag of the bam record:
+        score_a = current_record_a.aux(b"AS")
+            .ok_or(TagError::new())
+            .map(|s| s.integer())?;
+        score_b = current_record_b.aux(b"AS")
+            .ok_or(TagError::new())
+            .map(|s| s.integer())?;
 
-    while !eof_b {
-        out_bam_b.write(&current_record_b)?;
-        eof_b = read_or_eof(in_bam_b, &mut current_record_b)?;
+        // then, output the higher-scoring alignment to its corresponding
+        // output file, or both if the scores are equal.
+        if score_a >= score_b {
+            out_bam_a.write(&current_record_a)?;
+        }
+
+        if score_b >= score_a {
+            out_bam_b.write(&current_record_b)?;
+        }
+
+        eof_a = !next_primary(in_bam_a, &mut current_record_a)?;
+        eof_b = !next_primary(in_bam_b, &mut current_record_b)?;
     }
 
     Ok(())
