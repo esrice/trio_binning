@@ -1,9 +1,12 @@
 extern crate trio_binning;
 extern crate clap;
 extern crate rust_htslib;
+extern crate textwrap;
+extern crate ansi_term;
 
 use clap::{Arg, App, ArgMatches};
 use std::{process, error, fmt};
+use ansi_term::Colour;
 use self::rust_htslib::bam;
 use self::rust_htslib::prelude::*;
 
@@ -26,7 +29,7 @@ impl TagError {
 
 impl fmt::Display for TagError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.message)
+        write!(f, "{}", textwrap::fill(&self.message, textwrap::termwidth()))
     }
 }
 
@@ -40,19 +43,21 @@ struct SortError {
 impl SortError {
     fn new() -> Box<SortError> {
         Box::new(SortError {
-            message: "The two input files do not have qnames for their \
-                primary alignments in the same order. Did you sort the bam \
-                by read name? If so, please send a bug report to \
-                erice11@unl.edu explaining the alignment and sorting commands \
-                you used. This program has only been \
-                tested with bwa mem.".to_string(),
+            message: "The two input files do not have primary alignments \
+                in the same order. The bam files must contain the same \
+                reads in the same order. Make sure the bams are sorted by \
+                read name and that you didn't do anything like remove \
+                duplicates that could cause the two bams to have different \
+                reads. If you did all this but are still getting this error, \
+                please file a bug report at
+                https://github.com/esrice/trio_binning/issues".to_string(),
         })
     }
 }
 
 impl fmt::Display for SortError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.message)
+        write!(f, "{}", textwrap::fill(&self.message, textwrap::termwidth()))
     }
 }
 
@@ -80,14 +85,12 @@ fn parse_args() -> ArgMatches<'static> {
              .long("hapA-out")
              .required(true)
              .takes_value(true)
-             .default_value("hapA")
              .help("Place to put haplotype A output bam"))
         .arg(Arg::with_name("hapB-out")
              .short("B")
              .long("hapB-out")
              .required(true)
              .takes_value(true)
-             .default_value("hapB")
              .help("Place to put haplotype B output bam"))
         .get_matches()
 }
@@ -214,9 +217,14 @@ fn run() -> BoxResult<()> {
 
     let (count_a, count_b, count_unclassified) = classify_hi_c(
         &mut in_bam_a, &mut in_bam_b, &mut out_bam_a, &mut out_bam_b)?;
-    eprintln!("# reads classified to haplotype A: {}", count_a);
-    eprintln!("# reads classified to haplotype B: {}", count_b);
-    eprintln!("# reads with equal alignment scores in both haplotypes: {}",
+    eprintln!("{} {}",
+              Colour::Green.paint("# reads classified to haplotype A:"),
+              count_a);
+    eprintln!("{} {}",
+              Colour::Green.paint("# reads classified to haplotype B:"),
+              count_b);
+    eprintln!("{} {}", Colour::Green.paint("# reads with equal alignment \
+                                           scores in both haplotypes:"),
               count_unclassified);
 
     Ok(())
@@ -224,7 +232,10 @@ fn run() -> BoxResult<()> {
 
 fn main() {
     if let Err(e) = run() {
-        println!("fatal error: {}", e);
+        println!(
+            "{}\n{}",
+            Colour::Red.bold().paint("--------FATAL ERROR:---------"),
+            Colour::Red.paint(e.to_string()));
         process::exit(1);
     }
 }

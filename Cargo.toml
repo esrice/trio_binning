@@ -7,7 +7,6 @@ authors = ["Edward S. Rice <esrice@ucsc.edu>"]
 flate2 = "1.0.2"
 seq_io = "0.3.0"
 rust-htslib = "0.21.0"
-
-[dependencies.clap]
-version = "2.32.0"
-features = ["wrap_help"]
+textwrap = { version = "0.10.0", features = ["term_size"] }
+clap = { version = "2.32.0", features = ["wrap_help"] }
+ansi_term = "0.11.0"
