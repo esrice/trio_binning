@@ -132,10 +132,14 @@ fn next_primary(reader: &mut bam::Reader,
     }
 }
 
+/// Compare the alignment scores of each read in two bam files and output all
+/// alignments with score greater than or equal to the alignment of the same
+/// read in the opposite bam file. Return the number of reads output to only
+/// the first haplotype, only the second haplotype, and both haplotypes.
 fn classify_hi_c(in_bam_a: &mut bam::Reader,
                  in_bam_b: &mut bam::Reader,
                  out_bam_a: &mut bam::Writer,
-                 out_bam_b: &mut bam::Writer) -> BoxResult<()> {
+                 out_bam_b: &mut bam::Writer) -> BoxResult<(u64, u64, u64)> {
 
     // allocate new empty bam records to store actual records
     let mut current_record_a = bam::Record::new();
@@ -144,13 +148,16 @@ fn classify_hi_c(in_bam_a: &mut bam::Reader,
     let mut score_a: i64;
     let mut score_b: i64;
 
-    // TODO have some check that the file is sorted by read name, or else the
-    // program may exit without error but output empty files, which would be bad
+    // counters to keep track of the number of reads classified to each bin
+    let mut count_a: u64 = 0;
+    let mut count_b: u64 = 0;
+    let mut count_unclassified: u64 = 0;
 
     // continue reading records until we reach EOF in one of the files
     let mut eof_a = !next_primary(in_bam_a, &mut current_record_a)?;
     let mut eof_b = !next_primary(in_bam_b, &mut current_record_b)?;
     while !eof_a && !eof_b {
+        // check if bam is sorted wrong, and exit with an error if so.
         if current_record_a.qname() != current_record_b.qname() {
             return Err(SortError::new());
         }
@@ -167,19 +174,23 @@ fn classify_hi_c(in_bam_a: &mut bam::Reader,
 
         // then, output the higher-scoring alignment to its corresponding
         // output file, or both if the scores are equal.
-        if score_a >= score_b {
+        if score_a > score_b {
             out_bam_a.write(&current_record_a)?;
-        }
-
-        if score_b >= score_a {
+            count_a += 1;
+        } else if score_b > score_a {
             out_bam_b.write(&current_record_b)?;
+            count_b += 1;
+        } else { // tie, so write both records
+            out_bam_a.write(&current_record_a)?;
+            out_bam_b.write(&current_record_b)?;
+            count_unclassified += 1;
         }
 
         eof_a = !next_primary(in_bam_a, &mut current_record_a)?;
         eof_b = !next_primary(in_bam_b, &mut current_record_b)?;
     }
 
-    Ok(())
+    Ok((count_a, count_b, count_unclassified))
 }
 
 fn run() -> BoxResult<()> {
@@ -201,7 +212,14 @@ fn run() -> BoxResult<()> {
     let mut out_bam_b = bam::Writer::from_path(
         args.value_of("hapB-out").unwrap(), &header_b)?;
 
-    classify_hi_c(&mut in_bam_a, &mut in_bam_b, &mut out_bam_a, &mut out_bam_b)
+    let (count_a, count_b, count_unclassified) = classify_hi_c(
+        &mut in_bam_a, &mut in_bam_b, &mut out_bam_a, &mut out_bam_b)?;
+    eprintln!("# reads classified to haplotype A: {}", count_a);
+    eprintln!("# reads classified to haplotype B: {}", count_b);
+    eprintln!("# reads with equal alignment scores in both haplotypes: {}",
+              count_unclassified);
+
+    Ok(())
 }
 
 fn main() {
