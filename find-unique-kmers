@@ -6,7 +6,6 @@ find k-mers that are unique to each.
 Author: Edward S. Rice (erice11@unl.edu)
 """
 
-
 import argparse
 import os
 import sys
@@ -33,9 +32,9 @@ def parse_args():
             'output haplotypes to')
     parser.add_argument('-s', '--scratch-dir', default='.', help='Directory '
             'for large temporary files')
-    parser.add_argument('read_files', nargs='+', help='one comma-separated '
-            'list of file paths for each library being compared. Files can be '
-            'in fasta or fastq format, and uncompressed or gzipped.')
+    parser.add_argument('read_files', nargs=2, help='one comma-separated '
+            'list of file paths for both libraries being compared. Files can '
+            'be in fasta or fastq format, and uncompressed or gzipped.')
     return parser.parse_args()
 
 def run_kmc(infile_paths, outfile_path, k, threads=1, kmc_path='kmc',
@@ -118,85 +117,120 @@ def analyze_histogram(kmc_db, kmc_path='kmc', scratch_path='.'):
 
         last_count = count
 
-    os.remove(temp_histogram_path)
-
     if not min_coverage or not max_coverage:
         raise HistogramError(histo_cmd)
 
     if max_coverage - min_coverage < 5:
         print('WARNING: min and max coverage not very far apart. This may be '
-                'a result of coverage being too low. Try running "' +
-                ' '.join(histo_cmd) + '" and taking a look at this histogram '
-                'yourself.', file=sys.stderr)
+                'a result of coverage being too low. Try taking a look at ' +
+                'the histogram in "{}" yourself.'.format(temp_histogram_path),
+                file=sys.stderr)
+    else:
+        os.remove(temp_histogram_path)
 
     return min_coverage, max_coverage
 
-def run_jellyfish_dump(jellyfish_db, min_count, max_count, jf_cmd='jellyfish'):
+def run_kmc_subtract(kmc_db_a, min_count_a, max_count_a,
+        kmc_db_b, min_count_b, max_count_b, kmc_cmd='kmc'):
     """
-    Given a jellyfish database and a min and max count to
-    output, dump all k-mers with counts in that range
+    Given two kmc databases along with min and max counts
+    for both, make a new database containing only k-mers
+    that appear in the first database but not the second,
+    within the min and max bounds given.
 
     Arguments:
-    - jellyfish_db: path to jellyfish database
-    - min_count: minimum k-mer count to output a k-mer
-    - max_count: maximum k-mer count to output a k-mer
-    - jf_cmd: path to jellyfish binary
+    - kmc_db_a: path to the db to be subtracted _from_
+    - min_count_a: minimum k-mer count to keep a k-mer in A
+    - max_count_b: maximum k-mer count to keep a k-mer in A
+    - kmc_db_b: path to the db to subtract
+    - min_count_b: minimum k-mer count to keep a k-mer in B
+    - max_count_b: maximum k-mer count to keep a k-mer in B
+    - kmc_cmd: path to kmc binary (kmc_tools should be in
+      the same place).
 
-    Yields: a k-mer string for each k-mer in the dump
+    Returns: path to the output database
     """
 
-    jellyfish_cmd = [jf_cmd, 'dump', '-c', '-t', '-L', min_count,
-            '-U', max_count, jellyfish_db]
-    jellyfish_cmd = list(map(str, jellyfish_cmd))
-    jellyfish_proc = Popen(jellyfish_cmd, stdout=PIPE, stderr=sys.stderr,
-            bufsize=1, universal_newlines=True)
+    out_path = kmc_db_a + '_only'
+    make_input = lambda d, i, x: [d, '-ci' + str(i), '-cx' + str(x)]
+    subtract_cmd = [kmc_cmd + '_tools', 'kmers_subtract'] + \
+            make_input(kmc_db_a, min_count_a, max_count_a) + \
+            make_input(kmc_db_b, min_count_b, max_count_b) + [out_path]
+    check_call(subtract_cmd)
+    return out_path
 
-    kmer_set = set()
-    for line in jellyfish_proc.stdout:
-        kmer, count = line.strip().split('\t')
-        yield kmer
+def run_kmc_dump(kmc_db, out_path, kmc_cmd='kmc'):
+    """
+    Given a kmc database, dump it into a text file.
 
-    jellyfish_proc.stdout.close()
+    Arguments:
+    - kmc_db: path to kmc database
+    - out_path: path where we'll put result
+    - kmc_cmd: path to kmc binary
+
+    Returns: number of kmers dumped
+    """
+
+    dump_cmd = [kmc_cmd + '_tools', 'dump', kmc_db, out_path]
+    check_call(dump_cmd)
+
+    num_lines = 0
+    with open(out_path) as f:
+        for line in f:
+            num_lines += 1
+    return num_lines
 
 def main():
     args = parse_args()
 
     # Count k-mers in all haplotypes
-    jf_databases = [] # list of (jf_database_path, min_count, max_count)
-    for i, haplotype_files_string in enumerate(args.read_files):
-        print("Counting k-mers in haplotype {}...".format(i),
-                file=sys.stderr)
+    kmc_databases = [] # list of databases (db_path, min_count, max_count)
+    for hap_ID, haplotype_files_string in zip(['A', 'B'], args.read_files):
+        print('\033[92mCounting k-mers in haplotype {}...\033[0m'
+                .format(hap_ID), file=sys.stderr)
         haplotype_files = haplotype_files_string.split(',')
-        outfile_path = "{}/haplotype{}".format(args.outpath, i)
+        outfile_path = "{}/haplotype{}".format(args.outpath, hap_ID)
         run_kmc(haplotype_files, outfile_path, args.kmer_size,
                 args.threads, args.path_to_kmc, args.scratch_dir)
 
         # get the histogram for this haplotype and analyze it
-        print("Computing and analyzing histogram...", file=sys.stderr)
+        print("\033[92mComputing and analyzing histogram...\033[0m",
+                file=sys.stderr)
         min_count, max_count = analyze_histogram(outfile_path,
                 args.path_to_kmc, args.scratch_dir)
-        print("Using counts in range [{},{}].".format(min_count, max_count),
-                file=sys.stderr)
+        print("\033[92mUsing counts in range [{},{}].\033[0m"
+                .format(min_count, max_count), file=sys.stderr)
 
-#	# dump the k-mers into a file
-#        dump_file = open('{}/haplotype{}.dump'.format(args.outpath, i), 'w')
-#        dump_iter = run_jellyfish_dump(outfile_path, min_count, max_count,
-#                args.path_to_jellyfish)
-#        for kmer in dump_iter:
-#            print(kmer, file=dump_file)
-#
-#    print("""
-#    Done dumping "useful" k-mers, but the set comparison part has been left to
-#    you because python is too slow and doesn't manage its memory well. Here is
-#    an example of how you could use the dump files created by this program
-#    along with the unix utilities sort and comm to finish the job:
-#
-#    cut -f1 haplotype0.dump | sort -T /mnt/tmp --parallel 10 > hap0.kmers
-#    cut -f1 haplotype1.dump | sort -T /mnt/tmp --parallel 10 > hap1.kmers
-#
-#    comm -23 hap0.kmers hap1.kmers > hap0-only.kmers
-#    comm -13 hap0.kmers hap1.kmers > hap1-only.kmers
-#    """)
+        kmc_databases.append((outfile_path, min_count, max_count))
+
+    # unpack the database paths and min/max counts
+    (kmc_db_a, min_count_a, max_count_a) = kmc_databases[0]
+    (kmc_db_b, min_count_b, max_count_b) = kmc_databases[1]
+
+    # make a database of k-mers that appear only in haplotype A & dump
+    print('\033[92mFinding k-mers unique to haplotype A...\033[0m',
+            file=sys.stderr)
+    hap_a_only_db = run_kmc_subtract(kmc_db_a, min_count_a, max_count_a,
+            kmc_db_b, min_count_b, max_count_b, args.path_to_kmc)
+    print('\033[92mDumping k-mers unique to haplotype A...\033[0m',
+            file=sys.stderr)
+    hap_a_num_kmers = run_kmc_dump(hap_a_only_db,
+            args.outpath + '/hapA_kmers.txt', args.path_to_kmc)
+
+    # make a database of k-mers that appear only in haplotype B & dump
+    print('\033[92mFinding k-mers unique to haplotype B...\033[0m',
+            file=sys.stderr)
+    hap_b_only_db = run_kmc_subtract(kmc_db_b, min_count_b, max_count_b,
+            kmc_db_a, min_count_a, max_count_a, args.path_to_kmc)
+    print('\033[92mDumping k-mers unique to haplotype A...\033[0m',
+            file=sys.stderr)
+    hap_b_num_kmers = run_kmc_dump(hap_b_only_db,
+            args.outpath + '/hapB_kmers.txt', args.path_to_kmc)
+
+    print('\n\n\033[94m# of unique k-mers in haplotype A: {}\033[0m'
+            .format(hap_a_num_kmers), file=sys.stderr)
+    print('\033[94m# of unique k-mers in haplotype B: {}\033[0m'
+            .format(hap_b_num_kmers), file=sys.stderr)
 
 if __name__ == '__main__':
     main()
