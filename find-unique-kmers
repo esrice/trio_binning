@@ -130,8 +130,7 @@ def analyze_histogram(kmc_db, kmc_path='kmc', scratch_path='.'):
 
     return min_coverage, max_coverage
 
-def run_kmc_subtract(kmc_db_a, min_count_a, max_count_a,
-        kmc_db_b, min_count_b, max_count_b, kmc_cmd='kmc'):
+def run_kmc_subtract(kmc_db_a, kmc_db_b, kmc_cmd='kmc'):
     """
     Given two kmc databases along with min and max counts
     for both, make a new database containing only k-mers
@@ -140,11 +139,7 @@ def run_kmc_subtract(kmc_db_a, min_count_a, max_count_a,
 
     Arguments:
     - kmc_db_a: path to the db to be subtracted _from_
-    - min_count_a: minimum k-mer count to keep a k-mer in A
-    - max_count_b: maximum k-mer count to keep a k-mer in A
     - kmc_db_b: path to the db to subtract
-    - min_count_b: minimum k-mer count to keep a k-mer in B
-    - max_count_b: maximum k-mer count to keep a k-mer in B
     - kmc_cmd: path to kmc binary (kmc_tools should be in
       the same place).
 
@@ -152,26 +147,27 @@ def run_kmc_subtract(kmc_db_a, min_count_a, max_count_a,
     """
 
     out_path = kmc_db_a + '_only'
-    make_input = lambda d, i, x: [d, '-ci' + str(i), '-cx' + str(x)]
-    subtract_cmd = [kmc_cmd + '_tools', 'kmers_subtract'] + \
-            make_input(kmc_db_a, min_count_a, max_count_a) + \
-            make_input(kmc_db_b, min_count_b, max_count_b) + [out_path]
+    subtract_cmd = [kmc_cmd + '_tools', 'kmers_subtract',
+            kmc_db_a, kmc_db_b, out_path]
     check_call(subtract_cmd)
     return out_path
 
-def run_kmc_dump(kmc_db, out_path, kmc_cmd='kmc'):
+def run_kmc_dump(kmc_db, out_path, min_count, max_count, kmc_cmd='kmc'):
     """
     Given a kmc database, dump it into a text file.
 
     Arguments:
     - kmc_db: path to kmc database
     - out_path: path where we'll put result
+    - min_count: minimum count to output k-mer
+    - max_count: maximum count to output k-mer
     - kmc_cmd: path to kmc binary
 
     Returns: number of kmers dumped
     """
 
-    dump_cmd = [kmc_cmd + '_tools', 'dump', kmc_db, out_path]
+    dump_cmd = [kmc_cmd + '_tools', 'dump', kmc_db, out_path,
+            '-ci' + str(min_count), '-cx' + str(max_count)]
     check_call(dump_cmd)
 
     num_lines = 0
@@ -210,22 +206,20 @@ def main():
     # make a database of k-mers that appear only in haplotype A & dump
     print('\033[92mFinding k-mers unique to haplotype A...\033[0m',
             file=sys.stderr)
-    hap_a_only_db = run_kmc_subtract(kmc_db_a, min_count_a, max_count_a,
-            kmc_db_b, min_count_b, max_count_b, args.path_to_kmc)
+    hap_a_only_db = run_kmc_subtract(kmc_db_a, kmc_db_b, args.path_to_kmc)
     print('\033[92mDumping k-mers unique to haplotype A...\033[0m',
             file=sys.stderr)
-    hap_a_num_kmers = run_kmc_dump(hap_a_only_db,
-            args.outpath + '/hapA_kmers.txt', args.path_to_kmc)
+    hap_a_num_kmers = run_kmc_dump(hap_a_only_db, args.outpath + \
+            '/hapA_only_kmers.txt', min_count_a, max_count_a, args.path_to_kmc)
 
     # make a database of k-mers that appear only in haplotype B & dump
     print('\033[92mFinding k-mers unique to haplotype B...\033[0m',
             file=sys.stderr)
-    hap_b_only_db = run_kmc_subtract(kmc_db_b, min_count_b, max_count_b,
-            kmc_db_a, min_count_a, max_count_a, args.path_to_kmc)
+    hap_b_only_db = run_kmc_subtract(kmc_db_b, kmc_db_a, args.path_to_kmc)
     print('\033[92mDumping k-mers unique to haplotype A...\033[0m',
             file=sys.stderr)
-    hap_b_num_kmers = run_kmc_dump(hap_b_only_db,
-            args.outpath + '/hapB_kmers.txt', args.path_to_kmc)
+    hap_b_num_kmers = run_kmc_dump(hap_b_only_db, args.outpath + \
+            '/hapB_only_kmers.txt', min_count_b, max_count_b, args.path_to_kmc)
 
     print('\n\n\033[94m# of unique k-mers in haplotype A: {}\033[0m'
             .format(hap_a_num_kmers), file=sys.stderr)
