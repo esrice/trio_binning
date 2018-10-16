@@ -1,11 +1,13 @@
 extern crate trio_binning;
 extern crate clap;
+extern crate ansi_term;
 
 use trio_binning::kmer::*;
 use trio_binning::classify::*;
 use std::fs::File;
-use clap::{Arg, App, ArgGroup, ArgMatches};
+use clap::{Arg, App, ArgMatches};
 use std::{process, error, thread, fmt};
+use ansi_term::Colour;
 
 type BoxResult<T> = Result<T, Box<error::Error>>;
 
@@ -31,10 +33,10 @@ impl fmt::Display for SimpleError {
 impl error::Error for SimpleError {}
 
 fn parse_args() -> ArgMatches<'static> {
-    App::new("classify_reads")
-        .version("0.1.0")
+    App::new("classify_by_kmers")
+        .version("0.2.0")
         .author("Edward S. Rice <erice11@unl.edu>")
-        .about("Classify reads based on haplotype")
+        .about("Classify reads based on haplotype using k-mers")
         .arg(Arg::with_name("threads")
              .short("t")
              .long("threads")
@@ -55,21 +57,13 @@ fn parse_args() -> ArgMatches<'static> {
              .takes_value(true)
              .help("File with kmers in canonical representation, \
                    one per line, unique to haplotype B"))
-        .group(ArgGroup::with_name("input-reads")
-               .args(&["input-unpaired", "input-paired-end"])
-               .required(true))
-        .arg(Arg::with_name("input-unpaired")
-             .short("u")
-             .long("input-unpaired")
+        .arg(Arg::with_name("input-reads")
+             .short("i")
+             .long("input-reads")
+             .required(true)
              .takes_value(true)
              .help("Fasta/q/bam file containing unpaired reads to classify, \
                    e.g. PacBio"))
-        .arg(Arg::with_name("input-paired-end")
-             .short("p")
-             .long("input-paired-end")
-             .takes_value(true)
-             .number_of_values(2)
-             .help("A pair of fastq files containing paired reads to classify"))
         .arg(Arg::with_name("hapA-out-prefix")
              .short("A")
              .long("hapA-out-prefix")
@@ -94,12 +88,6 @@ fn parse_args() -> ArgMatches<'static> {
              .help("Output gz-compressed files"))
         .get_matches()
 }
-
-//fn asdf(filename: String) -> Result<> {
-//    let f = File::open(filename)?;
-//    let s = read_kmers_into_set(f)?;
-//
-//}
 
 fn simple_error<E: 'static + error::Error>(e: E) -> SimpleError {
     SimpleError {
@@ -130,7 +118,7 @@ fn run() -> BoxResult<()> {
     let k = get_kmer_size(File::open(args.value_of("hapA-kmers").unwrap())?)?;
 
     // read k-mers into HashSets
-    eprintln!("Reading k-mers into sets...");
+    eprintln!("{}", Colour::Blue.bold().paint("Reading k-mers into sets..."));
     let (hap_a_kmers, hap_b_kmers);
     if num_threads > 1 { // trying out some concurrency!
         let hap_a_kmers_filename = args.value_of("hapA-kmers")
@@ -158,33 +146,23 @@ fn run() -> BoxResult<()> {
 
     // call the correct function depending on whether the input is unpaired
     // reads or paired-end reads
-    match args.value_of("input-unpaired") {
-        Some(input_reads_filename) => {
-            eprintln!("Classifying reads...");
-            classify_unpaired(hap_a_kmers, hap_b_kmers, input_reads_filename,
-                              args.value_of("hapA-out-prefix").unwrap(),
-                              args.value_of("hapB-out-prefix").unwrap(),
-                              args.value_of("hapU-out-prefix").unwrap(),
-                              args.is_present("compress-output"),
-                              k, num_threads)?;
-        }
-        None => {
-            unimplemented!();
-//            let filenames: Vec<&str> = args.values_of("input-paired")
-//                .unwrap().collect();
-//            classify_paired(&hap_a_kmers, &hap_b_kmers, filenames[0],
-//                            filenames[1],
-//                            args.value_of("hapA-out-prefix").unwrap(),
-//                            args.value_of("hapB-out-prefix").unwrap(),
-//                            args.value_of("hapU-out-prefix").unwrap())?;
-        }
-    }
+    eprintln!("{}", Colour::Blue.bold().paint("Classifying reads..."));
+    classify_unpaired(hap_a_kmers, hap_b_kmers,
+                      args.value_of("input-reads").unwrap(),
+                      args.value_of("hapA-out-prefix").unwrap(),
+                      args.value_of("hapB-out-prefix").unwrap(),
+                      args.value_of("hapU-out-prefix").unwrap(),
+                      args.is_present("compress-output"), k, num_threads)?;
+
     Ok(())
 }
 
 fn main() {
     if let Err(e) = run() {
-        println!("fatal error: {}", e);
+        println!(
+            "{}\n{}",
+            Colour::Red.bold().paint("--------FATAL ERROR:---------"),
+            Colour::Red.paint(e.to_string()));
         process::exit(1);
     }
 }

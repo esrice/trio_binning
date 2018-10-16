@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufReader, BufRead};
 use std::error::Error;
-use std::result;
+use std::{result, convert};
 
 const MAX_KMER_LENGTH: usize = 32;
 
@@ -12,6 +12,7 @@ pub enum KmerError {
     InvalidBaseError(char),
     LengthError(usize),
     Io(io::Error),
+    BadKmerFile(usize),
 }
 
 impl fmt::Display for KmerError {
@@ -23,11 +24,19 @@ impl fmt::Display for KmerError {
                 write!(f, "k-mer length ({}) is greater than maximum ({})",
                     length, MAX_KMER_LENGTH),
             KmerError::Io(e) => e.fmt(f),
+            KmerError::BadKmerFile(l) =>
+                write!(f, "Cannot read k-mer on line {}", l + 1),
         }
     }
 }
 
 impl Error for KmerError {}
+
+impl convert::From<io::Error> for KmerError {
+    fn from(error: io::Error) -> Self {
+        KmerError::Io(error)
+    }
+}
 
 type Result<T> = result::Result<T, KmerError>;
 pub type KmerSet = HashSet<u64>;
@@ -110,8 +119,11 @@ pub fn get_kmer_size(file: File) -> Result<usize> {
 pub fn read_kmers_into_set(file: File) -> Result<KmerSet> {
     let mut kmers: KmerSet = KmerSet::new();
 
-    for kmer in BufReader::new(file).lines() {
-        kmers.insert(kmer_to_bits(&kmer.map_err(|e| KmerError::Io(e))?)?);
+    for (line_num, line_result) in BufReader::new(file).lines().enumerate() {
+        let line = line_result?;
+        let kmer = line.split_whitespace().next()
+            .ok_or(KmerError::BadKmerFile(line_num))?;
+        kmers.insert(kmer_to_bits(&kmer)?);
     }
 
     Ok(kmers)

@@ -64,10 +64,10 @@ impl fmt::Display for SortError {
 impl error::Error for SortError {}
 
 fn parse_args() -> ArgMatches<'static> {
-    App::new("classify_hi_c")
-        .version("0.1.0")
+    App::new("classify_by_alignment")
+        .version("0.2.0")
         .author("Edward S. Rice <erice11@unl.edu>")
-        .about("Classify Hi-C reads based on alignments")
+        .about("Classify reads based on haplotype using alignments")
         .arg(Arg::with_name("hapA-in")
              .short("a")
              .long("hapA-in")
