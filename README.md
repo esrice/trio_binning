@@ -48,8 +48,8 @@ The numbers of unique k-mers for each haplotype is output to STDERR.
 Once you've got lists of k-mers unique to the maternal and paternal genomes, you can use these to classify reads from the offspring into maternal and paternal haplotypes using the program `classify_by_kmers`, like so:
 
 ```
-classify_by_kmers -a maternal-only.kmers -A classified/maternal \
-    -b paternal-only.kmers -B classified/paternal \
+classify_by_kmers -a hapA_only_kmers.txt -A classified/maternal \
+    -b hapB_only_kmers.txt -B classified/paternal \
     -u offspring.fastq.gz -U classified/unclassified -c
 ```
 
