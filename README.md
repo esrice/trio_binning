@@ -25,7 +25,7 @@ git clone https://github.com/esrice/trio_binning.git
 cd trio_binning
 cargo build --release
 ```
-There will now be a binary in `target/release/classify_reads`.
+There will now be binaries in `target/release`.
 
 ## Finding unique k-mers in parental genomes
 `find-unique-kmers` is a script that uses the program kmc to find k-mers that
