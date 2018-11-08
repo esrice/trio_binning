@@ -3,19 +3,14 @@ language: rust
 rust:
     - stable
 
-addons:
-  apt:
-    packages:
-      - gcc
-      - musl-tools
-      - make
-      - clang
-      - libz-dev
-      - libclang-dev
+sudo: required
+
+services:
+  - docker
 
 before_script:
-  - rustup target add x86_64-unknown-linux-musl
+  - docker pull esrice/rustbuilder
 
 script:
-  - cargo build --target x86_64-unknown-linux-musl
-  - cargo test --target x86_64-unknown-linux-musl
+  - docker run -v "$(pwd)":/home/ubuntu/src esrice/rustbuilder \
+        cargo build --target x86_64-unknown-linux-musl
