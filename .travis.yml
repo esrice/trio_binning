@@ -1,0 +1,21 @@
+language: rust
+
+rust:
+    - stable
+
+addons:
+  apt:
+    packages:
+      - gcc
+      - musl-tools
+      - make
+      - clang
+      - libz-dev
+      - libclang-dev
+
+before_script:
+  - rustup target add x86_64-unknown-linux-musl
+
+script:
+  - cargo build --target x86_64-unknown-linux-musl
+  - cargo test --target x86_64-unknown-linux-musl
