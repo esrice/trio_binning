@@ -6,7 +6,7 @@ authors = ["Edward S. Rice <esrice@ucsc.edu>"]
 [dependencies]
 flate2 = "1.0.2"
 seq_io = "0.3.0"
-rust-htslib = "0.21.0"
+rust-htslib = { git = "https://github.com/rust-bio/rust-htslib.git", rev = "1f9736e" }
 textwrap = { version = "0.10.0", features = ["term_size"] }
 clap = { version = "2.32.0", features = ["wrap_help"] }
 ansi_term = "0.11.0"
