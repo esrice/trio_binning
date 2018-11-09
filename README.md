@@ -1,17 +1,13 @@
 # trio_binning
-This repository contains programs implementing the [trio-binning assembly method published by Koren et al.](https://www.biorxiv.org/content/early/2018/02/26/271486)
+This repository contains programs implementing the [trio-binning assembly method published by Koren et al.](https://www.nature.com/articles/nbt.4277)
 
 ## Installation
 ### Requirements
-* [kmc](https://github.com/refresh-bio/KMC)
+* [kmc](https://github.com/refresh-bio/KMC) (for the `find-unique-kmers` script only)
 * Python
 
 ### Binary package
-A binary package compiled for 64-bit linux can be downloaded on the [release](https://github.com/esrice/trio_binning/releases) page. Then, just unzip it and you're done.
-
-```
-tar zxf trio_binning.tar.gz
-```
+A binary package compiled for 64-bit linux can be downloaded on the [release](https://github.com/esrice/trio_binning/releases) page. Just download the three executables from the latest release and you're good to go!
 
 ### From source
 To compile from source, you'll need the following dependencies:
@@ -92,4 +88,4 @@ paternal haplotype, aligned to the paternal reference. You can then post-process
 these bams and use them as input to your scaffolding or annotation pipelines.
 
 ## Citation
-Koren et al. (2018). "Complete assembly of parental haplotypes with trio binning." _bioRxiv_ 271486.
+Koren et al. (2018). "Complete assembly of parental haplotypes with trio binning." _Nature Biotechnology_ 2018/10/22/online
