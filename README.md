@@ -1,5 +1,5 @@
 # trio_binning
-This repository contains programs implementing the [trio-binning assembly method published by Koren et al.](https://www.biorxiv.org/content/early/2018/02/26/271486)
+This repository contains programs implementing the [trio-binning assembly method published by Koren et al.](https://www.nature.com/articles/nbt.4277)
 
 ## Installation
 ### Requirements
@@ -88,4 +88,4 @@ paternal haplotype, aligned to the paternal reference. You can then post-process
 these bams and use them as input to your scaffolding or annotation pipelines.
 
 ## Citation
-Koren et al. (2018). "Complete assembly of parental haplotypes with trio binning." _bioRxiv_ 271486.
+Koren et al. (2018). "Complete assembly of parental haplotypes with trio binning." _Nature Biotechnology_ 2018/10/22/online
