@@ -7,11 +7,7 @@ This repository contains programs implementing the [trio-binning assembly method
 * Python
 
 ### Binary package
-A binary package compiled for 64-bit linux can be downloaded on the [release](https://github.com/esrice/trio_binning/releases) page. Then, just unzip it and you're done.
-
-```
-tar zxf trio_binning.tar.gz
-```
+A binary package compiled for 64-bit linux can be downloaded on the [release](https://github.com/esrice/trio_binning/releases) page. Just download the three executables from the latest release and you're good to go!
 
 ### From source
 To compile from source, you'll need the following dependencies:
