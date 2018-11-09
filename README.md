@@ -3,7 +3,7 @@ This repository contains programs implementing the [trio-binning assembly method
 
 ## Installation
 ### Requirements
-* [kmc](https://github.com/refresh-bio/KMC)
+* [kmc](https://github.com/refresh-bio/KMC) (for the `find-unique-kmers` script only)
 * Python
 
 ### Binary package
