@@ -12,5 +12,4 @@ before_script:
   - docker pull esrice/rustbuilder
 
 script:
-  - docker run -v "$(pwd)":/home/ubuntu/src esrice/rustbuilder \
-        cargo build --target x86_64-unknown-linux-musl
+  - docker run -v "$(pwd)":/home/ubuntu/src esrice/rustbuilder /root/.cargo/bin/cargo build --target x86_64-unknown-linux-musl
