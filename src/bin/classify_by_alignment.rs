@@ -168,12 +168,29 @@ fn classify_hi_c(in_bam_a: &mut bam::Reader,
         // now that we have alignments of the same read in current_record_a
         // and current_record_b, we can compare them. First, get the
         // alignment scores from the "AS" tag of the bam record:
-        score_a = current_record_a.aux(b"AS")
-            .ok_or(TagError::new())
-            .map(|s| s.integer())?;
-        score_b = current_record_b.aux(b"AS")
-            .ok_or(TagError::new())
-            .map(|s| s.integer())?;
+        score_a = match current_record_a.aux(b"AS") {
+            Some(score) => score.integer(),
+            None => {
+                // some aligners do not report an alignment score for unmapped
+                // reads, so we give unmapped reads without an alignment score
+                // a very negative score
+                if current_record_a.is_unmapped() {
+                    std::i64::MIN
+                } else { // mapped reads should really have an AS
+                    return Err(TagError::new())
+                }
+            },
+        };
+        score_b = match current_record_b.aux(b"AS") {
+            Some(score) => score.integer(),
+            None => {
+                if current_record_b.is_unmapped() {
+                    std::i64::MIN
+                } else {
+                    return Err(TagError::new())
+                }
+            },
+        };
 
         // then, output the higher-scoring alignment to its corresponding
         // output file, or both if the scores are equal.
