@@ -46,7 +46,7 @@ Once you've got lists of k-mers unique to the maternal and paternal genomes, you
 ```
 classify_by_kmers -a hapA_only_kmers.txt -A classified/maternal \
     -b hapB_only_kmers.txt -B classified/paternal \
-    -u offspring.fastq.gz -U classified/unclassified -c
+    -u offspring.fastq.gz -U classified/unclassified -c -i input_reads.bam
 ```
 
 This will leave you with three files in the `classified` directory: `paternal.fq.gz`, `maternal.fq.gz`, and `unclassified.fq.gz`. The input read format is super flexible &mdash; you can give this program reads in fasta or fastq format, gzipped or not gzipped, or even a bam file.
