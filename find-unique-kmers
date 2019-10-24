@@ -147,8 +147,8 @@ def run_kmc_subtract(kmc_db_a, kmc_db_b, kmc_cmd='kmc'):
     """
 
     out_path = kmc_db_a + '_only'
-    subtract_cmd = [kmc_cmd + '_tools', 'kmers_subtract',
-            kmc_db_a, kmc_db_b, out_path]
+    subtract_cmd = [kmc_cmd + '_tools', 'simple', kmc_db_a, kmc_db_b,
+                    'kmers_subtract', out_path]
     check_call(subtract_cmd)
     return out_path
 
