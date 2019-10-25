@@ -166,7 +166,7 @@ def run_kmc_dump(kmc_db, out_path, min_count, max_count, kmc_cmd='kmc'):
     Returns: number of kmers dumped
     """
 
-    dump_cmd = [kmc_cmd + '_tools', 'dump', kmc_db, out_path,
+    dump_cmd = [kmc_cmd + '_dump', kmc_db, out_path,
             '-ci' + str(min_count), '-cx' + str(max_count)]
     check_call(dump_cmd)
 
