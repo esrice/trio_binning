@@ -1,7 +1,7 @@
 [package]
 name = "trio_binning"
-version = "0.1.0"
-authors = ["Edward S. Rice <esrice@ucsc.edu>"]
+version = "0.2.3"
+authors = ["Edward S. Rice <edward.rice@missouri.edu>"]
 
 [dependencies]
 flate2 = "1.0.2"

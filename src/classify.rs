@@ -29,18 +29,20 @@ pub fn count_kmers_in_read(hap_a_kmers: &kmer::KmerSet,
     let mut hap_a_count: u32 = 0;
     let mut hap_b_count: u32 = 0;
 
-    for i in 0..(read.seq.len() - k + 1) {
-        let bits = kmer::get_canonical_repr(&read.seq[i..i+k])
-            .and_then(|kmer| kmer::kmer_to_bits(&kmer))?;
+    if read.seq.len() >= k {
+        for i in 0..(read.seq.len() - k + 1) {
+            let bits = kmer::get_canonical_repr(&read.seq[i..i+k])
+                .and_then(|kmer| kmer::kmer_to_bits(&kmer))?;
 
-        if hap_a_kmers.contains(&bits) {
-            hap_a_count += 1;
-        }
-        // hap_a_kmers and hap_b_kmers *should* be mutually exclusive sets, so
-        // it shouldn't matter whether this is if or else if, but I'm doing it
-        // this way so that the answer is still correct even if they aren't.
-        if hap_b_kmers.contains(&bits) {
-            hap_b_count += 1;
+            if hap_a_kmers.contains(&bits) {
+                hap_a_count += 1;
+            }
+            // hap_a_kmers and hap_b_kmers *should* be mutually exclusive sets, so
+            // it shouldn't matter whether this is if or else if, but I'm doing it
+            // this way so that the answer is still correct even if they aren't.
+            if hap_b_kmers.contains(&bits) {
+                hap_b_count += 1;
+            }
         }
     }
 
