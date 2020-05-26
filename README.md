@@ -46,10 +46,10 @@ Once you've got lists of k-mers unique to the maternal and paternal genomes, you
 ```
 classify_by_kmers -a hapA_only_kmers.txt -A classified/maternal \
     -b hapB_only_kmers.txt -B classified/paternal \
-    -u offspring.fastq.gz -U classified/unclassified -c -i input_reads.bam
+    -u offspring.fastq.gz -U classified/unclassified -i input_reads.bam
 ```
 
-This will leave you with three files in the `classified` directory: `paternal.fq.gz`, `maternal.fq.gz`, and `unclassified.fq.gz`. The input read format is super flexible &mdash; you can give this program reads in fasta or fastq format, gzipped or not gzipped, or even a bam file.
+This will leave you with three files in the `classified` directory: `paternal.fq`, `maternal.fq`, and `unclassified.fq`. The input read format is super flexible &mdash; you can give this program reads in fasta or fastq format, gzipped or not gzipped, or even a bam file.
 
 ## Classifying short reads from offspring based on alignment
 After you have performed the initial contig assembly, you may have short reads

@@ -82,10 +82,6 @@ fn parse_args() -> ArgMatches<'static> {
              .takes_value(true)
              .default_value("hapU")
              .help("Prefix for haplotype U output"))
-        .arg(Arg::with_name("compress-output")
-             .short("c")
-             .long("compress-output")
-             .help("Output gz-compressed files"))
         .get_matches()
 }
 
@@ -152,7 +148,7 @@ fn run() -> BoxResult<()> {
                       args.value_of("hapA-out-prefix").unwrap(),
                       args.value_of("hapB-out-prefix").unwrap(),
                       args.value_of("hapU-out-prefix").unwrap(),
-                      args.is_present("compress-output"), k, num_threads)?;
+                      false, k, num_threads)?;
 
     Ok(())
 }
