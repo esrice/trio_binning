@@ -24,7 +24,7 @@ impl fmt::Display for ExtensionError {
 
 impl error::Error for ExtensionError {}
 
-type Result<T> = result::Result<T, Box<error::Error>>;
+type Result<T> = result::Result<T, Box<dyn error::Error>>;
 
 pub struct SeqRecord {
     pub id: String,

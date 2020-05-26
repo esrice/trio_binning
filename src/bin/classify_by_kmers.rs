@@ -9,7 +9,7 @@ use clap::{Arg, App, ArgMatches};
 use std::{process, error, thread, fmt};
 use ansi_term::Colour;
 
-type BoxResult<T> = Result<T, Box<error::Error>>;
+type BoxResult<T> = Result<T, Box<dyn error::Error>>;
 
 #[derive(Debug)]
 struct SimpleError {

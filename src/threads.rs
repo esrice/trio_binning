@@ -83,7 +83,7 @@ fn spawn_writer<T>(mut hap_a_out: T, mut hap_b_out: T, mut hap_u_out: T,
                     let hap_b_score = (results.hap_b_count as f32)
                         * scaling_factor_b;
 
-                    let mut haplotype;
+                    let haplotype;
                     if hap_a_score > hap_b_score {
                         hap_a_out.write(results.record.entry_string
                                         .as_bytes()).unwrap();

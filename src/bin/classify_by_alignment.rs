@@ -10,7 +10,7 @@ use ansi_term::Colour;
 use self::rust_htslib::bam;
 use self::rust_htslib::prelude::*;
 
-type BoxResult<T> = Result<T, Box<error::Error>>;
+type BoxResult<T> = Result<T, Box<dyn error::Error>>;
 
 #[derive(Debug)]
 struct TagError {

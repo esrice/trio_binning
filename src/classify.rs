@@ -127,7 +127,7 @@ pub fn classify_unpaired(hap_a_kmers: kmer::KmerSet,
             let hap_a_score = (hap_a_count as f32) * scaling_factor_a;
             let hap_b_score = (hap_b_count as f32) * scaling_factor_b;
 
-            let mut haplotype;
+            let haplotype;
             if hap_a_score > hap_b_score {
                 hap_a_out.write(record.entry_string.as_bytes())?;
                 haplotype = "A";
