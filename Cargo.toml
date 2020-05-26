@@ -4,7 +4,7 @@ version = "0.2.3"
 authors = ["Edward S. Rice <edward.rice@missouri.edu>"]
 
 [dependencies]
-flate2 = "1.0.2"
+flate2 = "1.0.14"
 seq_io = "0.3.0"
 rust-htslib = { git = "https://github.com/rust-bio/rust-htslib.git", rev = "1f9736e" }
 textwrap = { version = "0.10.0", features = ["term_size"] }
