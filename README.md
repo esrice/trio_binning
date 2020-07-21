@@ -68,9 +68,14 @@ bwa mem paternal_ref.fa short_reads_R1.fq.gz short_reads_R2.fq.gz \
     | samtools view -bh - | samtools sort -n - > short_reads.paternal_ref.bam
 ```
 
-*N.B.* If you do any duplicate removal or anything else that could remove some
+*N.B.* If you do any PCR duplicate removal or anything else that could remove some
 alignments from one bam file but not the other, do that _after_ the
 classification step.
+
+If you used high-error long reads (e.g., PacBio CLR and not CCS), you should
+polish the contigs with long reads using a program such as Arrow before aligning short reads to
+them, as improving base accuracy of contigs will greatly improve the quality of
+the alignments.
 
 Then, use the `classify_by_alignment` program to classify each read into a
 haplotype based on which assembly it aligns to best:
@@ -89,3 +94,4 @@ these bams and use them as input to your scaffolding or annotation pipelines.
 
 ## Citation
 Koren et al. (2018). "Complete assembly of parental haplotypes with trio binning." _Nature Biotechnology_ 2018/10/22/online
+Rice et al. (2020). "Continuous chromosome-scale haplotypes assembled from a single interspecies F1 hybrid of yak and cattle." _GigaScience_ 9(4):giaa029
