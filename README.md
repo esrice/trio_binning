@@ -92,6 +92,6 @@ and a file `paternal_classified.bam` containing reads classified to the
 paternal haplotype, aligned to the paternal reference. You can then post-process
 these bams and use them as input to your scaffolding or annotation pipelines.
 
-## Citation
-Koren et al. (2018). "Complete assembly of parental haplotypes with trio binning." _Nature Biotechnology_ 2018/10/22/online
-Rice et al. (2020). "Continuous chromosome-scale haplotypes assembled from a single interspecies F1 hybrid of yak and cattle." _GigaScience_ 9(4):giaa029
+## Citations
+* Koren et al. (2018). "Complete assembly of parental haplotypes with trio binning." _Nature Biotechnology_ 2018/10/22/online
+* Rice et al. (2020). "Continuous chromosome-scale haplotypes assembled from a single interspecies F1 hybrid of yak and cattle." _GigaScience_ 9(4):giaa029
