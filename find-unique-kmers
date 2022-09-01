@@ -212,10 +212,10 @@ def run_kmc_dump(kmc_db, out_path, min_count, max_count, kmc_cmd="kmc"):
 
     dump_cmd = [
         kmc_cmd + "_dump",
-        kmc_db,
-        out_path,
         "-ci" + str(min_count),
         "-cx" + str(max_count),
+        kmc_db,
+        out_path,
     ]
     check_call(dump_cmd)
 
