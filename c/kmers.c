@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
+#include <string.h>
 
 /*
  * Contains a hash set full of k-mers.
@@ -163,7 +164,6 @@ char kmer_in_hash_set(char* kmer, hash_set* set) {
 
 void count_kmers_in_read(
     char* read,
-    int read_length,
     hash_set* haplotype_A,
     hash_set* haplotype_B,
     int* count_A,
@@ -175,6 +175,8 @@ void count_kmers_in_read(
 
     *count_A = 0;
     *count_B = 0;
+
+    int read_length = strlen(read);
 
     for (i = 0; i < read_length - haplotype_A->k + 1; i++)
     {
@@ -211,7 +213,6 @@ int main() {
     int count_A = 0, count_B = 0;
     count_kmers_in_read(
         "GAGGAGATTTAGAGTGTGAGTCGAGCATAGAGATATATA",
-        39,
         hapA,
         hapB,
         &count_A,

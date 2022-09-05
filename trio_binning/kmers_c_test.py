@@ -36,7 +36,6 @@ def main():
 
     count_kmers_in_read(
         b"GAGGAGATTTAGAGTGTGAGTCGAGCATAGAGATATATA",
-        c_int(39),
         hapA,
         hapB,
         byref(count_a),
