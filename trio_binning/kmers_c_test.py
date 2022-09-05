@@ -1,4 +1,6 @@
-from ctypes import cdll, Structure, c_int, c_ubyte, POINTER, c_uint64, c_char_p, byref
+from ctypes import (POINTER, Structure, byref, c_char_p, c_int, c_ubyte,
+                    c_uint64, cdll)
+
 
 class HashSet(Structure):
     _fields_: list = [
@@ -8,6 +10,7 @@ class HashSet(Structure):
         ("k", c_ubyte),
         ("num_kmers", c_int),
     ]
+
 
 def main():
     lib = cdll.LoadLibrary("../c/kmers.so")
@@ -40,7 +43,10 @@ def main():
         byref(count_b),
     )
 
-    print(f"Found {count_a.value} kmers from hapA and {count_b.value} from hapB in read.")
+    print(
+        f"Found {count_a.value} kmers from hapA and {count_b.value} from hapB in read."
+    )
+
 
 if __name__ == "__main__":
     main()
