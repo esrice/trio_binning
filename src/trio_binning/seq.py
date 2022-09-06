@@ -8,9 +8,8 @@ This just has a single function for reading fastx files into a Read
 class, which then has a print function. That's all.
 """
 import sys
-from abc import ABC
 from dataclasses import dataclass
-from typing import IO, Iterator, Optional, TextIO
+from typing import Iterator, Optional, TextIO
 
 
 @dataclass
@@ -21,7 +20,7 @@ class Read:
     """The name of the read"""
     seq: str
     """The sequence of the read"""
-    qual: Optional[str]
+    qual: Optional[str] = None
     """The quality score string of the read"""
 
     def print(self, file: TextIO = sys.stdout):
@@ -49,27 +48,27 @@ def readfq(fp: TextIO) -> Iterator[Read]:
     last = None  # this is a buffer keeping the last unprocessed line
     while True:  # mimic closure; is it a bad idea?
         if not last:  # the first record or a record following a fastq
-            for l in fp:  # search for the start of the next record
-                if l[0] in ">@":  # fasta/q header line
-                    last = l[:-1]  # save this line
+            for line in fp:  # search for the start of the next record
+                if line[0] in ">@":  # fasta/q header line
+                    last = line[:-1]  # save this line
                     break
         if not last:
             break
         name, seqs, last = last[1:].partition(" ")[0], [], None
-        for l in fp:  # read the sequence
-            if l[0] in "@+>":
-                last = l[:-1]
+        for line in fp:  # read the sequence
+            if line[0] in "@+>":
+                last = line[:-1]
                 break
-            seqs.append(l[:-1])
+            seqs.append(line[:-1])
         if not last or last[0] != "+":  # this is a fasta record
             yield Read(name, "".join(seqs), None)  # yield a fasta record
             if not last:
                 break
         else:  # this is a fastq record
             seq, leng, seqs = "".join(seqs), 0, []
-            for l in fp:  # read the quality
-                seqs.append(l[:-1])
-                leng += len(l) - 1
+            for line in fp:  # read the quality
+                seqs.append(line[:-1])
+                leng += len(line) - 1
                 if leng >= len(seq):  # have read enough quality
                     last = None
                     yield Read(name, seq, "".join(seqs))
