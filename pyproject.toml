@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trio_binning"
+version = "1.0.0"
+dependencies = ["biopython"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+devel = ["flake8", "mypy", "black", "isort"]
+
+[project.scripts]
+find-unique-kmers = "trio_binning.find_unique_kmers:main"
+classify-by-kmers = "trio_binning.classify_by_kmers:main"
+
+[tool.isort]
+profile = "black"
