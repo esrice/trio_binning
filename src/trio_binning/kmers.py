@@ -11,13 +11,30 @@ Found 6 13-mers in file.
 >>> kmers.count_kmers_in_read("GAGGAGATTTAGAGTGTGAGTCGAGCATAGAGATATATA", hapA, hapB)
 (1, 2)
 """
-from ctypes import (POINTER, Structure, byref, c_char_p, c_int, c_ubyte,
-                    c_uint64, cdll, pointer)
-from os.path import isfile
+from ctypes import (
+    POINTER,
+    Structure,
+    byref,
+    c_char_p,
+    c_int,
+    c_ubyte,
+    c_uint64,
+    cdll,
+    pointer,
+)
+from importlib.machinery import EXTENSION_SUFFIXES
+from os.path import dirname, isfile, join
 from typing import TYPE_CHECKING, Tuple
 
-# TODO need to figure out how to find the path of this file dynamically
-lib = cdll.LoadLibrary("../c/kmers.so")
+correct_library_file = ""
+for extension in EXTENSION_SUFFIXES:
+    possible_library_file = join(dirname(__file__), "kmers_c" + extension)
+    if isfile(possible_library_file):
+        correct_library_file = possible_library_file
+
+if correct_library_file == "":
+    raise ImportError("Cannot load kmers_c library. Is it installed correctly?")
+lib = cdll.LoadLibrary(correct_library_file)
 
 
 class _HashSet(Structure):
