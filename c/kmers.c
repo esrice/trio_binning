@@ -166,8 +166,8 @@ void count_kmers_in_read(
     char* read,
     hash_set* haplotype_A,
     hash_set* haplotype_B,
-    int* count_A,
-    int* count_B
+    int* count_A, // TODO this needs to be a float
+    int* count_B // TODO this needs to be a float
 ) {
     int i, j;
     char* kmer = malloc((haplotype_A->k + 1) * sizeof(char));
@@ -187,6 +187,8 @@ void count_kmers_in_read(
         if (kmer_in_hash_set(kmer, haplotype_B))
             (*count_B)++;
     }
+
+    // TODO convert counts to scores
 
     free(kmer);
 }
