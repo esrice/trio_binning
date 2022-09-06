@@ -101,13 +101,21 @@ def main():
         not args.no_gzip_output,
     )
 
+    num_kmers_a = kmers.get_number_kmers_in_set(args.haplotype_a_kmers)
+    num_kmers_b = kmers.get_number_kmers_in_set(args.haplotype_b_kmers)
+    max_num_kmers = max(num_kmers_a, num_kmers_b)
+    scaling_factor_a = max_num_kmers // num_kmers_a
+    scaling_factor_b = max_num_kmers // num_kmers_b
+
     for read in reads:
-        hapA_score, hapB_score = kmers.count_kmers_in_read(
+        hapA_count, hapB_count = kmers.count_kmers_in_read(
             read.seq, args.haplotype_a_kmers, args.haplotype_b_kmers
         )
 
-        # TODO be a little bit more finessed than A>B or B>A
-        if hapA_score > hapB_score:
+        hapA_score = hapA_count * scaling_factor_a
+        hapB_score = hapB_count * scaling_factor_b
+
+        if hapA_score * scaling_factor_a > hapB_score:
             read_bin = "A"
             read.print(file=haplotype_a_outfile)
         elif hapB_score > hapA_score:
