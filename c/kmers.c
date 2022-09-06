@@ -110,7 +110,7 @@ hash_set* create_kmer_hash_set(char* kmer_file_path) {
     while (getline(&line_buffer, &length, fp) != -1) {
         num_kmers++;
     }
-    fprintf(stderr, "Found %d %d-mers in file.\n", num_kmers, out_hash_set->k);
+    out_hash_set->num_kmers = num_kmers;
 
     // initialize hash set
     out_hash_set->hash_size = num_kmers * 4 / 3;
