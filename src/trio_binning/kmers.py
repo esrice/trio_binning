@@ -131,4 +131,4 @@ def count_kmers_in_read(
 
 
 def get_number_kmers_in_set(kmer_hash_set: HashSet) -> int:
-    return kmer_hash_set.contents.num_kmers.value
+    return kmer_hash_set.contents.num_kmers
