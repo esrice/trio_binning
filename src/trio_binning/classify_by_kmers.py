@@ -9,12 +9,14 @@ import gzip
 from os import path
 from typing import TextIO, Tuple, Union, cast
 
-import kmers
-from seq import readfq
+from trio_binning import kmers
+from trio_binning.seq import readfq
 
 
 def parse_args():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument(
         "reads",
         help="reads to classify into bins, in fasta/q format. Can be gzipped.",
@@ -48,7 +50,7 @@ def parse_args():
         "--no-gzip-output",
         action="store_true",
         help="don't gzip the output",
-        default=True,
+        default=False,
     )
     return parser.parse_args()
 
@@ -76,20 +78,20 @@ def open_outfiles(
         haplotype_b_outfile = open(haplotype_a_outfile_name, "w")
         unclassified_outfile = open(unclassified_outfile_name, "w")
     else:
-        haplotype_a_outfile = gzip.open(haplotype_a_outfile_name + ".gz", "w")
-        haplotype_b_outfile = gzip.open(haplotype_b_outfile_name + ".gz", "w")
-        unclassified_outfile = gzip.open(unclassified_outfile_name + ".gz", "w")
+        haplotype_a_outfile = gzip.open(haplotype_a_outfile_name + ".gz", "wt")
+        haplotype_b_outfile = gzip.open(haplotype_b_outfile_name + ".gz", "wt")
+        unclassified_outfile = gzip.open(unclassified_outfile_name + ".gz", "wt")
 
     return haplotype_a_outfile, haplotype_b_outfile, unclassified_outfile
 
 
 def main():
-    args = parser.parse_args()
+    args = parse_args()
 
     if args.reads.endswith(".gz"):
         reads = readfq(cast(TextIO, gzip.open(args.reads, "r")))
     else:
-        reads = open(args.reads, "r")
+        reads = readfq(open(args.reads, "r"))
 
     outfile_extension = path.splitext(args.reads.rstrip(".gz"))[1]
 
@@ -104,8 +106,8 @@ def main():
     num_kmers_a = kmers.get_number_kmers_in_set(args.haplotype_a_kmers)
     num_kmers_b = kmers.get_number_kmers_in_set(args.haplotype_b_kmers)
     max_num_kmers = max(num_kmers_a, num_kmers_b)
-    scaling_factor_a = max_num_kmers // num_kmers_a
-    scaling_factor_b = max_num_kmers // num_kmers_b
+    scaling_factor_a = 1.0 * max_num_kmers / num_kmers_a
+    scaling_factor_b = 1.0 * max_num_kmers / num_kmers_b
 
     for read in reads:
         hapA_count, hapB_count = kmers.count_kmers_in_read(
