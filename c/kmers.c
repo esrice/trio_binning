@@ -70,6 +70,27 @@ uint64_t kmer_to_int(char* kmer, unsigned char k) {
     return kmer_int;
 }
 
+void reverse_complement(char* kmer_in, char* kmer_out, unsigned char k) {
+    int i;
+    for (i = 0; i < k; i++)
+    {
+        switch (kmer_in[i]) {
+            case 'A':
+                kmer_out[k-i-1] = 'T';
+                break;
+            case 'C':
+                kmer_out[k-i-1] = 'G';
+                break;
+            case 'G':
+                kmer_out[k-i-1] = 'C';
+                break;
+            case 'T':
+                kmer_out[k-i-1] = 'A';
+                break;
+        }
+    }
+}
+
 /*
  * Add a k-mer to the hash.
  *
@@ -142,12 +163,22 @@ hash_set* create_kmer_hash_set(char* kmer_file_path) {
  *
  * Args:
  *     kmer: kmer string to look up
+ *     empty_kmer_buffer: preallocated buffer of size sizeof(char)*(k+1) for
+ *         putting reverse complements in. Just a temporary place for this
+ *         function to put stuff without having to allocate the space every
+ *         single time it is run, for speed reasons
  *     set: hash set in which to check for k-mer membership
  *
  * Returns: 1 if k-mer is in set, 0 otherwise
  */
-char kmer_in_hash_set(char* kmer, hash_set* set) {
-    int kmer_int = kmer_to_int(kmer, set->k);
+char kmer_in_hash_set(char* kmer, char* empty_kmer_buffer, hash_set* set) {
+    // calculate the int representations of the kmer and its reverse
+    // complement, looking up only the lesser of the two
+    uint64_t kmer_int = kmer_to_int(kmer, set->k);
+    reverse_complement(kmer, empty_kmer_buffer, set->k);
+    uint64_t kmer_revcomp_int = kmer_to_int(empty_kmer_buffer, set->k);
+
+    kmer_int = kmer_int < kmer_revcomp_int ? kmer_int : kmer_revcomp_int;
 
     int position = kmer_int % set->hash_size;
     while (set->full[position])
@@ -171,6 +202,7 @@ void count_kmers_in_read(
 ) {
     int i, j;
     char* kmer = malloc((haplotype_A->k + 1) * sizeof(char));
+    char* kmer_revcomp = malloc((haplotype_A->k + 1) * sizeof(char));
     kmer[haplotype_A->k] = '\0';
 
     *count_A = 0;
@@ -182,13 +214,14 @@ void count_kmers_in_read(
     {
         for (j = 0; j < haplotype_A->k; j++)
             kmer[j] = read[i+j];
-        if (kmer_in_hash_set(kmer, haplotype_A))
+        if (kmer_in_hash_set(kmer, kmer_revcomp, haplotype_A))
             (*count_A)++;
-        if (kmer_in_hash_set(kmer, haplotype_B))
+        if (kmer_in_hash_set(kmer, kmer_revcomp, haplotype_B))
             (*count_B)++;
     }
 
     free(kmer);
+    free(kmer_revcomp);
 }
 
 int main() {
