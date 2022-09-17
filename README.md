@@ -1,4 +1,4 @@
-# trio_binning
+# trio\_binning
 This repository contains programs implementing the [trio-binning assembly method published by Koren et al.](https://www.nature.com/articles/nbt.4277)
 
 ## Installation
@@ -6,22 +6,7 @@ This repository contains programs implementing the [trio-binning assembly method
 * [kmc](https://github.com/refresh-bio/KMC) (for the `find-unique-kmers` script only)
 * Python
 
-### Binary package
-A binary package compiled for 64-bit linux can be downloaded on the [release](https://github.com/esrice/trio_binning/releases) page. Just download the three executables from the latest release and you're good to go!
-
-### From source
-To compile from source, you'll need the following dependencies:
-* rust (`curl https://sh.rustup.rs -sSf | sh`)
-* clang (you can use `sudo apt-get install clang` to install this in ubuntu)
-* liblzma (`sudo apt-get install liblzma-dev`)
-
-Then, run the following commands to download and compile:
-```
-git clone https://github.com/esrice/trio_binning.git
-cd trio_binning
-cargo build --release
-```
-There will now be binaries in `target/release`.
+Fill in here...
 
 ## Finding unique k-mers in parental genomes
 `find-unique-kmers` is a script that uses the program kmc to find k-mers that
@@ -41,15 +26,24 @@ databases for both the total set of 21-mers for each parent and the unique sets.
 The numbers of unique k-mers for each haplotype is output to STDERR.
 
 ## Classifying long reads from offspring for assembly
-Once you've got lists of k-mers unique to the maternal and paternal genomes, you can use these to classify reads from the offspring into maternal and paternal haplotypes using the program `classify_by_kmers`, like so:
+Once you've got lists of k-mers unique to the maternal and paternal genomes,
+you can use these to classify reads from the offspring into maternal and
+paternal haplotypes using the program `classify-by-kmers`, like so:
 
-```
-classify_by_kmers -a hapA_only_kmers.txt -A classified/maternal \
-    -b hapB_only_kmers.txt -B classified/paternal \
-    -u offspring.fastq.gz -U classified/unclassified -i input_reads.bam
+```bash
+classify-by-kmers \
+    input_reads.fastq.gz \
+    hapA_only_kmers.txt \
+    hapB_only_kmers.txt \
+    --haplotype-a-prefix classified/maternal \
+    --haplotype-b-prefix classified/paternal \
+    --unclassified-prefix classified/unclassified
 ```
 
-This will leave you with three files in the `classified` directory: `paternal.fq`, `maternal.fq`, and `unclassified.fq`. The input read format is super flexible &mdash; you can give this program reads in fasta or fastq format, gzipped or not gzipped, or even a bam file.
+This will leave you with three files in the `classified` directory:
+`paternal.fastq.gz`, `maternal.fastq.gz`, and `unclassified.fastq.gz`. The
+input read format is super flexible &mdash; you can give this program reads in
+fasta or fastq format, gzipped or not gzipped.
 
 ## Classifying short reads from offspring based on alignment
 After you have performed the initial contig assembly, you may have short reads
@@ -95,3 +89,8 @@ these bams and use them as input to your scaffolding or annotation pipelines.
 ## Citations
 * Koren et al. (2018). "Complete assembly of parental haplotypes with trio binning." _Nature Biotechnology_ 2018/10/22/online
 * Rice et al. (2020). "Continuous chromosome-scale haplotypes assembled from a single interspecies F1 hybrid of yak and cattle." _GigaScience_ 9(4):giaa029
+
+## TODO
+* Make sure pip installs c stuff correctly in editable and non-editable mode
+* Add automated push tests with github actions
+* Rewrite classify-by-alignment in python
