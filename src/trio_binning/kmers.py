@@ -11,6 +11,7 @@ Found 6 13-mers in file.
 >>> kmers.count_kmers_in_read("GAGGAGATTTAGAGTGTGAGTCGAGCATAGAGATATATA", hapA, hapB)
 (1, 2)
 """
+import sys
 from ctypes import (
     POINTER,
     Structure,
@@ -94,6 +95,8 @@ def create_kmer_hash_set(kmer_file_path: str) -> HashSet:
     """
     if not isfile(kmer_file_path):
         raise IOError(f"Specified file {kmer_file_path} does not exist or is not file.")
+
+    print(f"Reading k-mers in {kmer_file_path}...", file=sys.stderr)
 
     return create_kmer_hash_set_c(kmer_file_path.encode("utf-8"))
 
