@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <string.h>
+#include <time.h>
 
 /*
  * Contains a hash set full of k-mers.
@@ -177,6 +178,8 @@ hash_set* create_kmer_hash_set(char* kmer_file_path) {
     size_t length = 0;
     FILE* fp;
     hash_set* out_hash_set;
+    clock_t start, end;
+    double time_elapsed;
 
     char* line_buffer = malloc(33 * sizeof(char));
 
@@ -187,12 +190,23 @@ hash_set* create_kmer_hash_set(char* kmer_file_path) {
 
     fprintf(stderr, "Creating hash...\n");
     fp = fopen(kmer_file_path, "r");
+    start = clock();
     for (i = 0; getline(&line_buffer, &length, fp) != -1; i++) {
         add_to_hash(out_hash_set, line_buffer);
         if (i % (num_kmers/10 + 1) == 0)
         {
+            end = clock();
+            time_elapsed = ((double) (end - start)) / CLOCKS_PER_SEC;
+            start = end;
             percent_done = 100 * (unsigned long) i / num_kmers;
-            fprintf(stderr, "%d/%lu (%d%%) done\n", i, num_kmers, percent_done);
+            fprintf(
+                stderr,
+                "%d/%lu (%d%%) done in %fs\n",
+                i,
+                num_kmers,
+                percent_done,
+                time_elapsed
+            );
         }
     }
 
