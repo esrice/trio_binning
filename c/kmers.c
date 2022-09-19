@@ -99,9 +99,8 @@ void reverse_complement(char* kmer_in, char* kmer_out, unsigned char k) {
  *     kmer: the k-mer string to add to the set
  */
 void add_to_hash(hash_set* set, char* kmer) {
-    int kmer_int = kmer_to_int(kmer, set->k);
-
-    int position = kmer_int % set->hash_size;
+    uint64_t kmer_int = kmer_to_int(kmer, set->k);
+    uint64_t position = kmer_int % set->hash_size;
     while (set->full[position])
     {
         position = (position + 1) % set->hash_size;
