@@ -114,7 +114,7 @@ void add_to_hash(hash_set* set, char* kmer) {
  * Create a new k-mer hash set from a file full of k-mers, one per line
  */
 hash_set* create_kmer_hash_set(char* kmer_file_path) {
-    int num_kmers, i;
+    int num_kmers, percent_done, i;
     size_t length = 0;
     size_t characters;
     FILE* fp;
@@ -131,6 +131,13 @@ hash_set* create_kmer_hash_set(char* kmer_file_path) {
         num_kmers++;
     }
     out_hash_set->num_kmers = num_kmers;
+    fprintf(
+        stderr,
+        "Found %d %d-mers in %s.\n",
+        num_kmers,
+        out_hash_set->k,
+        kmer_file_path
+    );
 
     // initialize hash set
     out_hash_set->hash_size = num_kmers * 4 / 3;
@@ -145,13 +152,21 @@ hash_set* create_kmer_hash_set(char* kmer_file_path) {
         out_hash_set->full[i] = 0;
     }
 
+    fprintf(stderr, "Creating hash...\n");
     fp = fopen(kmer_file_path, "r");
-    while (getline(&line_buffer, &length, fp) != -1) {
+    for (i = 0; getline(&line_buffer, &length, fp) != -1; i++) {
         add_to_hash(out_hash_set, line_buffer);
+        if (i % (num_kmers/10 + 1) == 0)
+        {
+            percent_done = 100 * i / num_kmers;
+            fprintf(stderr, "%d%% done\n", percent_done);
+        }
     }
 
+    fprintf(stderr, "Done!\n");
     // free up memory
     free(line_buffer);
+    fclose(fp);
 
     return out_hash_set;
 }
