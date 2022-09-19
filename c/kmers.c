@@ -110,36 +110,49 @@ void add_to_hash(hash_set* set, char* kmer) {
     set->kmers[position] = kmer_int;
 }
 
-/*
- * Create a new k-mer hash set from a file full of k-mers, one per line
- */
-hash_set* create_kmer_hash_set(char* kmer_file_path) {
-    int num_kmers, percent_done, i;
-    size_t length = 0;
-    size_t characters;
+int peek_at_file(char* kmer_file_path, uint64_t* num_kmers) {
     FILE* fp;
-
     char* line_buffer = malloc(33 * sizeof(char));
-    hash_set* out_hash_set = malloc(sizeof(hash_set));
+    int k;
+    size_t length = 0, characters;
 
-    // read through once to count number of kmers
     fp = fopen(kmer_file_path, "r");
-    num_kmers = 1;
+    *num_kmers = 1;
     characters = getline(&line_buffer, &length, fp);
-    out_hash_set->k = (int) characters - 1;
+    k = (int) characters - 1;
     while (getline(&line_buffer, &length, fp) != -1) {
-        num_kmers++;
+        (*num_kmers)++;
     }
-    out_hash_set->num_kmers = num_kmers;
     fprintf(
         stderr,
-        "Found %d %d-mers in %s.\n",
-        num_kmers,
-        out_hash_set->k,
+        "Found %lu %d-mers in %s.\n",
+        *num_kmers,
+        k,
         kmer_file_path
     );
 
-    // initialize hash set
+    return k;
+}
+
+/*
+ * Initialize a new hash_set struct. Allocate memory for both the
+ * struct itself and the arrays inside of it.
+ *
+ * Args:
+ *     k: the k-mer size of the hash
+ *     num_kmers: the number of k-mers that are going to be put inside.
+ *         This information is needed to figure out how much space to
+ *         allocate for it.
+ *
+ * Returns: a new hash set that's ready to start adding stuff to
+ */
+hash_set* initialize_hash_set(int k, uint64_t num_kmers) {
+    int i;
+    hash_set* out_hash_set;
+
+    out_hash_set = malloc(sizeof(hash_set));
+    out_hash_set->k = k;
+    out_hash_set->num_kmers = num_kmers;
     out_hash_set->hash_size = num_kmers * 4 / 3;
     //NOLINTNEXTLINE
     out_hash_set->kmers = (uint64_t*) malloc(
@@ -152,6 +165,26 @@ hash_set* create_kmer_hash_set(char* kmer_file_path) {
         out_hash_set->full[i] = 0;
     }
 
+    return out_hash_set;
+}
+
+/*
+ * Create a new k-mer hash set from a file full of k-mers, one per line
+ */
+hash_set* create_kmer_hash_set(char* kmer_file_path) {
+    int percent_done, i, k;
+    uint64_t num_kmers;
+    size_t length = 0;
+    FILE* fp;
+    hash_set* out_hash_set;
+
+    char* line_buffer = malloc(33 * sizeof(char));
+
+    // read through once to count number of kmers
+    k = peek_at_file(kmer_file_path, &num_kmers);
+
+    out_hash_set = initialize_hash_set(k, num_kmers);
+
     fprintf(stderr, "Creating hash...\n");
     fp = fopen(kmer_file_path, "r");
     for (i = 0; getline(&line_buffer, &length, fp) != -1; i++) {
@@ -159,7 +192,7 @@ hash_set* create_kmer_hash_set(char* kmer_file_path) {
         if (i % (num_kmers/10 + 1) == 0)
         {
             percent_done = 100 * (unsigned long) i / num_kmers;
-            fprintf(stderr, "%d/%d (%d%%) done\n", i, num_kmers, percent_done);
+            fprintf(stderr, "%d/%lu (%d%%) done\n", i, num_kmers, percent_done);
         }
     }
 
