@@ -158,8 +158,8 @@ hash_set* create_kmer_hash_set(char* kmer_file_path) {
         add_to_hash(out_hash_set, line_buffer);
         if (i % (num_kmers/10 + 1) == 0)
         {
-            percent_done = 100 * i / num_kmers;
-            fprintf(stderr, "%d%% done\n", percent_done);
+            percent_done = 100 * (unsigned long) i / num_kmers;
+            fprintf(stderr, "%d/%d (%d%%) done\n", i, num_kmers, percent_done);
         }
     }
 
