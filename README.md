@@ -91,6 +91,6 @@ these bams and use them as input to your scaffolding or annotation pipelines.
 * Rice et al. (2020). "Continuous chromosome-scale haplotypes assembled from a single interspecies F1 hybrid of yak and cattle." _GigaScience_ 9(4):giaa029
 
 ## TODO
-* Make sure pip installs c stuff correctly in editable and non-editable mode
+* Get find-unique-kmers output in 1-column format
 * Add automated push tests with github actions
 * Rewrite classify-by-alignment in python
