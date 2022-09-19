@@ -131,6 +131,7 @@ def analyze_histogram(kmc_db, kmc_path="kmc", scratch_path="."):
 
     # go through the histogram file looking for the first local minimum
     min_coverage, max_coverage = False, False
+    last_count = -1
     for line in open(temp_histogram_path):
         coverage, count = map(int, line.strip().split())
         if coverage != 2:  # don't do anything except record the first entry
@@ -271,7 +272,7 @@ def main():
     print("\033[92mDumping k-mers unique to haplotype A...\033[0m", file=sys.stderr)
     hap_a_num_kmers = run_kmc_dump(
         hap_a_only_db,
-        args.outpath + "/hapA_only_kmers.txt",
+        os.path.join(args.outpath, "hapA_only_kmers.txt"),
         min_count_a,
         max_count_a,
         args.path_to_kmc,
@@ -283,7 +284,7 @@ def main():
     print("\033[92mDumping k-mers unique to haplotype A...\033[0m", file=sys.stderr)
     hap_b_num_kmers = run_kmc_dump(
         hap_b_only_db,
-        args.outpath + "/hapB_only_kmers.txt",
+        os.path.join(args.outpath, "hapB_only_kmers.txt"),
         min_count_b,
         max_count_b,
         args.path_to_kmc,
