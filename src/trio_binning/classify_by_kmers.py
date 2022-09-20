@@ -89,7 +89,7 @@ def main():
     args = parse_args()
 
     if args.reads.endswith(".gz"):
-        reads = readfq(cast(TextIO, gzip.open(args.reads, "r")))
+        reads = readfq(cast(TextIO, gzip.open(args.reads, "rt")))
     else:
         reads = readfq(open(args.reads, "r"))
 
