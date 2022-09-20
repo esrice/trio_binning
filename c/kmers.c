@@ -93,6 +93,16 @@ void reverse_complement(char* kmer_in, char* kmer_out, unsigned char k) {
 }
 
 /*
+ * https://stackoverflow.com/questions/664014/
+ */
+unsigned int hash_function(uint64_t x) {
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = (x >> 16) ^ x;
+    return (unsigned int) x;
+}
+
+/*
  * Add a k-mer to the hash.
  *
  * Args:
@@ -101,7 +111,7 @@ void reverse_complement(char* kmer_in, char* kmer_out, unsigned char k) {
  */
 void add_to_hash(hash_set* set, char* kmer) {
     uint64_t kmer_int = kmer_to_int(kmer, set->k);
-    uint64_t position = kmer_int % set->hash_size;
+    unsigned int position = hash_function(kmer_int) % set->hash_size;
     while (set->full[position])
     {
         position = (position + 1) % set->hash_size;
@@ -233,15 +243,18 @@ hash_set* create_kmer_hash_set(char* kmer_file_path) {
  * Returns: 1 if k-mer is in set, 0 otherwise
  */
 char kmer_in_hash_set(char* kmer, char* empty_kmer_buffer, hash_set* set) {
+    uint64_t kmer_int, kmer_revcomp_int;
+    unsigned int position;
+
     // calculate the int representations of the kmer and its reverse
     // complement, looking up only the lesser of the two
-    uint64_t kmer_int = kmer_to_int(kmer, set->k);
+    kmer_int = kmer_to_int(kmer, set->k);
     reverse_complement(kmer, empty_kmer_buffer, set->k);
-    uint64_t kmer_revcomp_int = kmer_to_int(empty_kmer_buffer, set->k);
+    kmer_revcomp_int = kmer_to_int(empty_kmer_buffer, set->k);
 
     kmer_int = kmer_int < kmer_revcomp_int ? kmer_int : kmer_revcomp_int;
 
-    int position = kmer_int % set->hash_size;
+    position = hash_function(kmer_int) % set->hash_size;
     while (set->full[position])
     {
         if (set->kmers[position] == kmer_int)
