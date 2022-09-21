@@ -58,13 +58,13 @@ uint64_t kmer_to_int(char* kmer, unsigned char k) {
                 // no need to waste time doing 'kmer_int |= (0 << (i*2))'
                 break;
             case 'C':
-                kmer_int |= (1 << (i*2));
+                kmer_int |= (1ULL << (i*2));
                 break;
             case 'G':
-                kmer_int |= (2 << (i*2));
+                kmer_int |= (2ULL << (i*2));
                 break;
             case 'T':
-                kmer_int |= (3 << (i*2));
+                kmer_int |= (3ULL << (i*2));
         }
     }
 
