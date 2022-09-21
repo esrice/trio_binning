@@ -17,12 +17,11 @@ def test_classify_by_kmers_help(capsys):
 
 
 def test_classify_by_kmers(capsys, tmpdir):
-    # TODO make better test files
     with patch(
         "sys.argv",
         [
             "classify-by-kmers",
-            join(dirname(__file__), "data", "test.fastq"),
+            join(dirname(__file__), "data", "test.ccs.fastq.gz"),
             join(dirname(__file__), "data", "hapA.txt"),
             join(dirname(__file__), "data", "hapB.txt"),
             "--haplotype-a-out-prefix",
