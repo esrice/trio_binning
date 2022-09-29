@@ -58,13 +58,13 @@ uint64_t kmer_to_int(char* kmer, unsigned char k) {
                 // no need to waste time doing 'kmer_int |= (0 << (i*2))'
                 break;
             case 'C':
-                kmer_int |= (1 << (i*2));
+                kmer_int |= (UINT64_C(1) << (i*2));
                 break;
             case 'G':
-                kmer_int |= (2 << (i*2));
+                kmer_int |= (UINT64_C(2) << (i*2));
                 break;
             case 'T':
-                kmer_int |= (3 << (i*2));
+                kmer_int |= (UINT64_C(3) << (i*2));
         }
     }
 
@@ -290,7 +290,7 @@ void count_kmers_in_read(
             kmer[j] = read[i+j];
         if (kmer_in_hash_set(kmer, kmer_revcomp, haplotype_A))
             (*count_A)++;
-        if (kmer_in_hash_set(kmer, kmer_revcomp, haplotype_B))
+        else if (kmer_in_hash_set(kmer, kmer_revcomp, haplotype_B))
             (*count_B)++;
     }
 

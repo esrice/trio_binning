@@ -21,7 +21,7 @@ def test_classify_by_kmers(capsys, tmpdir):
         "sys.argv",
         [
             "classify-by-kmers",
-            join(dirname(__file__), "data", "test.fastq"),
+            join(dirname(__file__), "data", "test.ccs.fastq.gz"),
             join(dirname(__file__), "data", "hapA.txt"),
             join(dirname(__file__), "data", "hapB.txt"),
             "--haplotype-a-out-prefix",

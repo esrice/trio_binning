@@ -72,6 +72,27 @@ count_kmers_in_read_c.argtypes = [
     POINTER(c_int),
 ]
 
+kmer_to_int_c = lib.kmer_to_int
+kmer_to_int_c.argtypes = [c_char_p, c_ubyte]
+kmer_to_int_c.restype = c_uint64
+
+
+def kmer_to_int(kmer: str) -> int:
+    """Convert a kmer to integer format"""
+    return kmer_to_int_c(bytes(kmer, "utf-8"), c_ubyte(len(kmer)))
+
+
+reverse_complement_c = lib.reverse_complement
+reverse_complement_c.argtypes = [c_char_p, c_char_p, c_ubyte]
+
+
+def reverse_complement(kmer: str) -> str:
+    """Reverse complement a k-mer"""
+    out_kmer = bytes("x" * len(kmer), "utf-8")
+    reverse_complement_c(bytes(kmer, "utf-8"), out_kmer, len(kmer))
+    return out_kmer.decode("utf-8")
+
+
 # this is ugly as sin, but necessary because mypy is ok with `pointer`
 # as a subscriptable type while python runtime is not
 if TYPE_CHECKING:
