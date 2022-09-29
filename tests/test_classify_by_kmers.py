@@ -17,7 +17,6 @@ def test_classify_by_kmers_help(capsys):
 
 
 def test_classify_by_kmers(capsys, tmpdir):
-    # TODO make better test files
     with patch(
         "sys.argv",
         [

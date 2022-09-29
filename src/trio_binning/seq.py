@@ -7,9 +7,10 @@ BioPython) or read-only (e.g., screed).
 This just has a single function for reading fastx files into a Read
 class, which then has a print function. That's all.
 """
+import gzip
 import sys
 from dataclasses import dataclass
-from typing import Iterator, Optional, TextIO
+from typing import Iterator, Optional, TextIO, Tuple, Union, cast
 
 
 @dataclass
@@ -23,6 +24,12 @@ class Read:
     qual: Optional[str] = None
     """The quality score string of the read"""
 
+    def __str__(self):
+        if self.qual:
+            return f"@{self.name}\n{self.seq}\n+\n{self.qual}"
+        else:
+            return f">{self.name}\n{self.seq}"
+
     def print(self, file: TextIO = sys.stdout):
         """Print the read.
 
@@ -32,10 +39,7 @@ class Read:
         Args:
             file: the file to print the read to
         """
-        if self.qual:
-            print(f"@{self.name}\n{self.seq}\n+\n{self.qual}", file=file)
-        else:
-            print(f">{self.name}\n{self.seq}", file=file)
+        print(self, file=file)
 
 
 def readfq(fp: TextIO) -> Iterator[Read]:
@@ -77,3 +81,56 @@ def readfq(fp: TextIO) -> Iterator[Read]:
             if last:  # reach EOF before reading enough quality
                 yield Read(name, seq, None)  # yield a fasta record instead
                 break
+
+
+def open_fastx_read(filename: str) -> Iterator[Read]:
+    """Open a fasta/q(.gz) file for reading."""
+    if filename.endswith(".gz"):
+        reads = readfq(cast(TextIO, gzip.open(filename, "rt")))
+    else:
+        reads = readfq(open(filename, "r"))
+    return reads
+
+
+TextOrGzip = Union[TextIO, gzip.GzipFile]
+
+
+def open_outfiles(
+    haplotype_a_prefix: str,
+    haplotype_b_prefix: str,
+    unclassified_prefix: str,
+    outfile_extension: str,
+    gzip_output: bool,
+) -> Tuple[TextOrGzip, TextOrGzip, TextOrGzip]:
+    """Open output files based on given options.
+
+    Args:
+        haplotype_a_prefix: path prefix for haplotype A output file
+        haplotype_b_prefix: path prefix for haplotype B output file
+        unclassified_prefix: path prefix for unclassified output file
+        outfile_extension: extension for output file (e.g., ".fa")
+        gzip_output: True to gzip output files, False otherwise
+
+    Returns:
+        haplotype_a_outfile: writeable outfile for haplotype A
+        haplotype_b_outfile: writeable outfile for haplotype B
+        unclassified_outfile: writeable outfile for unclassified reads
+    """
+    haplotype_a_outfile_name = haplotype_a_prefix + outfile_extension
+    haplotype_b_outfile_name = haplotype_b_prefix + outfile_extension
+    unclassified_outfile_name = unclassified_prefix + outfile_extension
+
+    haplotype_a_outfile: TextOrGzip
+    haplotype_b_outfile: TextOrGzip
+    unclassified_outfile: TextOrGzip
+
+    if not gzip_output:
+        haplotype_a_outfile = open(haplotype_a_outfile_name, "w")
+        haplotype_b_outfile = open(haplotype_a_outfile_name, "w")
+        unclassified_outfile = open(unclassified_outfile_name, "w")
+    else:
+        haplotype_a_outfile = gzip.open(haplotype_a_outfile_name + ".gz", "wt")
+        haplotype_b_outfile = gzip.open(haplotype_b_outfile_name + ".gz", "wt")
+        unclassified_outfile = gzip.open(unclassified_outfile_name + ".gz", "wt")
+
+    return haplotype_a_outfile, haplotype_b_outfile, unclassified_outfile
