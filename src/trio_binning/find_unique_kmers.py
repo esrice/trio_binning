@@ -211,19 +211,25 @@ def run_kmc_dump(kmc_db, out_path, min_count, max_count, kmc_cmd="kmc"):
     Returns: number of kmers dumped
     """
 
+    counts_out_path = out_path + ".counts"
+
     dump_cmd = [
         kmc_cmd + "_dump",
         "-ci" + str(min_count),
         "-cx" + str(max_count),
         kmc_db,
-        out_path,
+        counts_out_path,
     ]
     check_call(dump_cmd)
 
     num_lines = 0
-    with open(out_path) as f:
-        for line in f:
-            num_lines += 1
+    with open(counts_out_path, "r") as counts_out:
+        with open(out_path, "w") as kmers_out:
+            for line in counts_out:
+                num_lines += 1
+                kmer, count = line.strip().split("\t")
+                print(kmer, file=kmers_out)
+
     return num_lines
 
 
