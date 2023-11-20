@@ -1,4 +1,4 @@
-# trio\_binning
+# Three generations haplotype binning 
 This repository contains programs implementing the [trio-binning assembly method published by Koren et al.](https://www.nature.com/articles/nbt.4277)
 
 ## Installation
