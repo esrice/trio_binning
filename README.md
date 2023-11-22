@@ -51,9 +51,9 @@ classify-by-kmers \
     input_reads.fastq.gz \
     hapA_only_kmers.txt \
     hapB_only_kmers.txt \
-    --haplotype-a-prefix classified/maternal \
-    --haplotype-b-prefix classified/paternal \
-    --unclassified-prefix classified/unclassified
+     --haplotype-a-out-prefix classified/maternal \
+     --haplotype-b-out-prefix classified/paternal \
+     --unclassified-out-prefix classified/unclassified
 ```
 
 This will leave you with three files in the `classified` directory:
